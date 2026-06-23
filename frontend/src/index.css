@@ -1,0 +1,184 @@
+/* CROSSED — Arcade Pixel theme: ROOT TOKENS + FONTS + BASE + active background */
+@import './fonts.css';      /* self-hosted pixel trio (no CDN) */
+@import './pixel-ui.css';   /* reusable .px-* component layer */
+
+:root {
+  /* ---- Warm Ink (arcade cabinet) — DARK is the default ---- */
+  --bg:        #15110C;   /* warm near-black */
+  --bg-2:      #211A10;   /* grid lines / raised */
+  --fg:        #FBF3E0;   /* warm cream text */
+  --muted:     #C9BFA6;
+  --muted-2:   #9A917B;
+  --card:      #1E180F;
+  --surface-2: #2A2114;
+  --border:    #3A2E1A;   /* warm brown border */
+  --ink:       #070502;   /* hard pixel shadow (near-black) */
+
+  /* vibrant accents (the coin family) — shared across modes */
+  --coin:    #FFD23F;
+  --aaa:     #FF2E88;
+  --bbb:     #2CE8F5;
+  --good:    #2BFF88;
+  --good-bg: #163320;
+  --violet:  #9B7BFF;
+  --warn:    #FF7A1A;
+  --accent:  var(--violet);
+
+  --primary:    var(--coin);
+  --primary-fg: #1A1206;
+  --text:   var(--fg);
+  --text-h: var(--fg);
+
+  /* ---- pixel geometry: small radii, HARD shadows (no blur) ---- */
+  --radius:    4px;
+  --radius-sm: 0px;
+  --shadow:     4px 4px 0 var(--ink);
+  --shadow-pop: 6px 6px 0 var(--ink);
+  --hi:        rgba(255, 255, 255, .07);  /* heading text-shadow highlight (light mode flips this) */
+
+  /* ---- fonts ---- */
+  --font-display: 'Press Start 2P', system-ui, monospace;
+  --font-body:    'VT323', ui-monospace, monospace;
+  --font-label:   'Silkscreen', 'Press Start 2P', monospace;
+  --sans:    var(--font-body);
+  --heading: var(--font-display);
+  --mono:    var(--font-body);
+
+  color-scheme: dark;
+  color: var(--fg);
+  background: var(--bg);
+}
+
+/* ---- Warm Cream (LIGHT) ---- */
+[data-theme="light"] {
+  --bg:        #FBF3E0;   /* warm cream */
+  --bg-2:      #EFE4C9;
+  --fg:        #211606;   /* dark warm ink text */
+  --muted:     #6B5E45;
+  --muted-2:   #8A7C5F;
+  --card:      #FFFDF7;
+  --surface-2: #F4EAD2;
+  --border:    #E2D3A8;
+  --ink:       #C9A85F;   /* shadows: warm tan (keeps arcade sticker depth on cream) */
+  --good-bg:   #DCF3E2;
+  --violet:    #6A4DE0;   /* deeper violet for contrast on cream */
+  --primary-fg:#1A1206;
+  color-scheme: light;
+}
+/* light-mode contrast fixes: neon washes out on cream */
+[data-theme="light"] .lp-hero h1 .g,
+[data-theme="light"] .hero h1 .g { color: #0E8FA0; }   /* deep teal vs bright cyan */
+[data-theme="light"] h1,
+[data-theme="light"] h2,
+[data-theme="light"] .brand .name,
+[data-theme="light"] .lp-hero h1,
+[data-theme="light"] .lp-section h2 { text-shadow: 2px 2px 0 #EAD7A6; }
+
+* { box-sizing: border-box; }
+html, body, #root { height: 100%; }
+html, body { overflow-x: hidden; max-width: 100%; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-body);
+  font-size: 21px;
+  line-height: 1.4;
+  letter-spacing: .5px;
+  -webkit-font-smoothing: none;
+  -moz-osx-font-smoothing: unset;
+  font-synthesis: none;
+  text-rendering: optimizeSpeed;
+}
+
+img.pixel, .pixel-art, .hero-art img, canvas { image-rendering: pixelated; }
+
+/* ---- theme toggle (arcade hard-shadow square) ---- */
+.theme-toggle {
+  display: inline-grid; place-items: center;
+  width: 34px; height: 34px; flex-shrink: 0;
+  background: var(--card); color: var(--fg);
+  border: 2px solid var(--border); border-radius: var(--radius);
+  cursor: pointer; box-shadow: var(--shadow);
+  transition: transform .05s ease, color .15s, border-color .15s;
+}
+.theme-toggle:hover { color: var(--coin); border-color: var(--coin); }
+.theme-toggle:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0 var(--ink); }
+.theme-toggle:focus-visible { outline: 2px solid var(--coin); outline-offset: 2px; }
+
+#root {
+  width: 100%;
+  max-width: 100%;
+  margin: 0 auto;
+  text-align: left;
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  background: transparent;
+  border: 0;
+}
+
+/* ---- type roles (display / body / label) ---- */
+h1, h2, .brand .name, .lp-hero h1, .lp-section h2 {
+  font-family: var(--font-display);
+  font-weight: 400;
+  color: var(--fg);
+  letter-spacing: 0;
+  line-height: 1.55;
+  text-transform: uppercase;
+  text-shadow: 3px 3px 0 var(--ink);
+}
+.lp-hero h1   { font-size: clamp(20px, 4.5vw, 40px); margin: 0 0 22px; }
+.lp-section h2{ font-size: clamp(14px, 2.6vw, 22px); }
+.lp-hero h1 .g, .hero h1 .g { color: var(--bbb); }
+
+.eyebrow, .trust-chip, .step-n, .stub-tag, .node-label, .pill {
+  font-family: var(--font-label);
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+.lp-body, .lp-sub, p, .muted, .step-t, .feat-t {
+  font-family: var(--font-body);
+  color: var(--muted);
+  font-size: 20px; line-height: 1.4;
+}
+code, .counter, .mono { font-family: var(--font-body); }
+
+/* ===== ACTIVE ANIMATED BACKGROUND (CSS, behind everything) ===== */
+.arcade-bg {
+  position: fixed; inset: 0; z-index: -2; pointer-events: none;
+  background-color: var(--bg);
+  background-image:
+    linear-gradient(var(--bg-2) 2px, transparent 2px),
+    linear-gradient(90deg, var(--bg-2) 2px, transparent 2px),
+    repeating-linear-gradient(0deg, rgba(122,92,255,.05) 0 2px, transparent 2px 4px);
+  background-size: 40px 40px, 40px 40px, 100% 4px;
+  image-rendering: pixelated;
+  animation: gridScroll 6s linear infinite;
+}
+.arcade-bg::after {
+  content: ""; position: absolute; inset: -40px;
+  background-image:
+    radial-gradient(var(--coin)  1.5px, transparent 2.5px),
+    radial-gradient(var(--bbb)   1.5px, transparent 2.5px),
+    radial-gradient(var(--aaa)   1.5px, transparent 2.5px),
+    radial-gradient(var(--violet)1.5px, transparent 2.5px);
+  background-size: 220px 220px, 300px 300px, 260px 260px, 180px 180px;
+  background-position: 0 0, 80px 120px, 160px 40px, 30px 200px;
+  opacity: .5; image-rendering: pixelated;
+  animation: coinDrift 22s linear infinite;
+}
+@keyframes gridScroll { to { background-position: 40px 40px, 40px 40px, 0 0; } }
+@keyframes coinDrift  { to { transform: translateY(-220px); } }
+@media (prefers-reduced-motion: reduce) {
+  .arcade-bg, .arcade-bg::after { animation: none; }
+}
+/* lighten the grid + floating dots on cream so they read as a subtle texture */
+[data-theme="light"] .arcade-bg {
+  background-image:
+    linear-gradient(var(--bg-2) 2px, transparent 2px),
+    linear-gradient(90deg, var(--bg-2) 2px, transparent 2px),
+    repeating-linear-gradient(0deg, rgba(106, 77, 224, .04) 0 2px, transparent 2px 4px);
+}
+[data-theme="light"] .arcade-bg::after { opacity: .26; }

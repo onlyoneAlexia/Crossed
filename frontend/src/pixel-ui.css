@@ -1,0 +1,101 @@
+/* CROSSED — Pixel UI component layer.
+   Built entirely on the tokens in index.css (--coin, --shadow, --border, fonts…).
+   Class prefix `px-` so it never collides with existing component styles.
+
+   Font roles (the pixel trio, already chosen — this just codifies usage):
+     • Press Start 2P (--font-display) → logo + big hero numbers ONLY (wide/heavy; never body)
+     • Silkscreen     (--font-label)   → labels, buttons, badges, section caps
+     • VT323          (--font-body)    → body text AND money figures (readable at size)
+*/
+
+:root {
+  --shadow-sm: 2px 2px 0 var(--ink);
+  --ease-step: steps(4, end);
+  --bad: #FF3B3B;        /* RESERVED: the single "blocked / rejected / error" state */
+  --bad-bg: #3A0E12;
+}
+
+/* ---------------------------------------------------------------- buttons */
+.px-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  font-family: var(--font-label); text-transform: uppercase; letter-spacing: .06em;
+  font-size: 13px; line-height: 1; color: var(--fg);
+  background: var(--surface-2); border: 2px solid var(--border);
+  padding: 12px 16px; border-radius: var(--radius); cursor: pointer;
+  box-shadow: var(--shadow); image-rendering: pixelated; -webkit-font-smoothing: none;
+  transition: transform .05s var(--ease-step), box-shadow .05s var(--ease-step),
+              background .12s, border-color .12s;
+}
+.px-btn:hover { border-color: var(--coin); }
+.px-btn:active { transform: translate(4px, 4px); box-shadow: 0 0 0 var(--ink); }
+.px-btn:focus-visible { outline: 2px solid var(--bbb); outline-offset: 3px; }
+.px-btn[disabled], .px-btn[aria-disabled="true"] {
+  opacity: .45; cursor: not-allowed; transform: none; box-shadow: var(--shadow);
+}
+.px-btn--primary { background: var(--coin);   color: var(--primary-fg); border-color: #7A5A12; }
+.px-btn--accent  { background: var(--violet);  color: #fff;             border-color: #4A36B0; }
+.px-btn--danger  { background: var(--bad);     color: #160305;          border-color: #8A1F22; }
+.px-btn--ghost   { background: transparent; }
+.px-btn--sm { font-size: 11px; padding: 8px 12px; box-shadow: var(--shadow-sm); }
+.px-btn--sm:active { box-shadow: 0 0 0 var(--ink); transform: translate(2px, 2px); }
+.px-btn--block { width: 100%; }
+
+/* ------------------------------------------------------------------ cards */
+.px-card {
+  background: var(--card); border: 2px solid var(--border);
+  border-radius: var(--radius); box-shadow: var(--shadow); padding: 18px;
+}
+.px-card--pop { box-shadow: var(--shadow-pop); }
+.px-card__title {
+  font-family: var(--font-label); text-transform: uppercase; letter-spacing: .08em;
+  font-size: 12px; color: var(--muted); margin: 0 0 12px;
+}
+
+/* ---------------------------------------------------- token chips & coins */
+.px-coin { image-rendering: pixelated; display: inline-block; vertical-align: middle; }
+.px-chip {
+  display: inline-flex; align-items: center; gap: 10px;
+  background: var(--surface-2); border: 2px solid var(--border);
+  border-radius: var(--radius); padding: 8px 12px;
+}
+.px-chip__amt { font-family: var(--font-body); font-size: 22px; color: var(--fg); line-height: 1; }
+.px-chip__sym { font-family: var(--font-label); font-size: 11px; color: var(--muted); text-transform: uppercase; }
+
+/* ----------------------------------------------------------- stat / value */
+.px-stat__v {
+  font-family: var(--font-display); font-size: clamp(16px, 3vw, 26px);
+  color: var(--coin); text-shadow: 3px 3px 0 var(--ink); line-height: 1.4;
+}
+.px-stat__k {
+  font-family: var(--font-label); font-size: 11px; color: var(--muted);
+  text-transform: uppercase; letter-spacing: .08em;
+}
+
+/* ----------------------------------------------------------------- inputs */
+.px-input {
+  font-family: var(--font-body); font-size: 20px; color: var(--fg);
+  background: var(--bg-2); border: 2px solid var(--border);
+  border-radius: var(--radius-sm); padding: 10px 12px; outline: none; width: 100%;
+}
+.px-input:focus-visible { border-color: var(--bbb); }
+.px-input::placeholder { color: var(--muted-2); }
+
+/* ----------------------------- status badge (dot + WORD, never colour-only) */
+.px-badge {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-family: var(--font-label); text-transform: uppercase; letter-spacing: .06em;
+  font-size: 11px; padding: 6px 10px; border: 2px solid var(--border);
+  border-radius: var(--radius); background: var(--surface-2); color: var(--muted);
+}
+.px-badge__dot { width: 8px; height: 8px; background: currentColor; box-shadow: inset 0 0 0 2px var(--ink); image-rendering: pixelated; }
+.px-badge--ok      { color: var(--good); border-color: #1C6B46; }
+.px-badge--bad     { color: var(--bad);  border-color: #8A1F22; }   /* the one reserved red */
+.px-badge--pending { color: var(--warn); border-color: #7A4111; }
+
+/* --------------------------------------------------------------- dividers */
+.px-rule { height: 0; border: 0; border-top: 2px dashed var(--border); margin: 18px 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .px-btn { transition: background .12s, border-color .12s; }
+  .px-btn:active { transform: none; }
+}

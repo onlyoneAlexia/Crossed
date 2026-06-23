@@ -1,0 +1,134 @@
+/* Animated pixel timeline — a Warm-Ink arcade "screen" (always dark, like the hero), framed by the
+   themed card border/shadow so it sits well in both light and dark mode. */
+.at-wrap {
+  --at-cycle: 9s;
+  --at-bg0: #15110C;   /* warm ink interior (always dark) */
+  --at-bg1: #211A10;
+  --at-line: #2E2416;  /* floor grid */
+  --at-dim: #5A4A2E;   /* inactive borders / track / numbers */
+  --at-ink: #070502;   /* hard interior shadow */
+  --c-offer:  var(--aaa);
+  --c-hidden: var(--bbb);
+  --c-match:  var(--good);
+  --c-swap:   var(--coin);
+  position: relative; overflow: hidden;
+  padding: 40px 22px 30px;
+  border: 3px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--at-bg0);
+  box-shadow: var(--shadow-pop);
+  image-rendering: pixelated;
+}
+.at-bg { position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  background: linear-gradient(180deg, var(--at-bg1) 0 50%, var(--at-bg0) 50% 100%); }
+.at-bg::before { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 50%;
+  background-image:
+    linear-gradient(90deg, var(--at-line) 2px, transparent 0),
+    linear-gradient(0deg,  var(--at-line) 2px, transparent 0);
+  background-size: 24px 24px; animation: atFloor 1.6s steps(24) infinite; }
+@keyframes atFloor { to { background-position: 24px 0; } }
+.at-stars { position: absolute; inset: 0 0 50% 0;
+  background-image:
+    radial-gradient(1px 1px at 12% 30%, #FFE98A 99%, transparent),
+    radial-gradient(1px 1px at 38% 60%, #9B7BFF 99%, transparent),
+    radial-gradient(1px 1px at 64% 20%, #FFE98A 99%, transparent),
+    radial-gradient(1px 1px at 86% 50%, #2CE8F5 99%, transparent);
+  animation: atTwinkle 2.6s steps(2) infinite; }
+@keyframes atTwinkle { 50% { opacity: .4; } }
+.at-scan { position: absolute; left: 0; right: 0; height: 6px;
+  background: rgba(255, 255, 255, .04); animation: atScan 7s linear infinite; }
+@keyframes atScan { from { top: -6px; } to { top: 100%; } }
+
+/* progress track + charging fill (sweeps left→right under the nodes) */
+.at-track { position: absolute; z-index: 1; left: 12%; right: 12%; top: 96px; height: 4px;
+  background: repeating-linear-gradient(90deg, var(--at-dim) 0 6px, transparent 6px 12px); }
+.at-fill { position: absolute; inset: 0 100% 0 0; background: var(--coin);
+  box-shadow: 0 0 0 1px var(--at-ink); animation: atCharge var(--at-cycle) steps(24, end) infinite; }
+@keyframes atCharge { 0% { right: 100%; } 75% { right: 0%; } 92% { right: 0%; opacity: 1; } 100% { right: 0%; opacity: 0; } }
+
+/* the player coin glides smoothly across the track and reaches each node on the quarter beats */
+.at-sprite { position: absolute; z-index: 3; top: 78px; left: 12%; margin-left: -11px;
+  animation: atHop var(--at-cycle) steps(22, end) infinite, atBob .6s steps(2) infinite; }
+@keyframes atHop {
+  0% { left: 12.5%; opacity: 0; } 4% { opacity: 1; }
+  75% { left: 87.5%; } 90% { left: 87.5%; opacity: 1; } 100% { left: 87.5%; opacity: 0; } }
+@keyframes atBob { 50% { transform: translateY(-3px); } }
+
+.at-nodes { position: relative; z-index: 2; display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.at-node { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px; font-family: var(--font-display); }
+.at-num { font-size: 9px; color: var(--at-dim); letter-spacing: 1px; }
+.at-cell { position: relative; width: 56px; height: 56px; display: grid; place-items: center;
+  background: #1E180F; border: 3px solid var(--at-dim); box-shadow: 0 4px 0 0 var(--at-ink); will-change: transform; }
+
+/* each cell wakes up (color + lift) as the coin arrives — gentler than before */
+.at-offer  .at-cell { animation: atOffer  var(--at-cycle) steps(1) infinite; }
+.at-hidden .at-cell { animation: atHidden var(--at-cycle) steps(1) infinite; }
+.at-match  .at-cell { animation: atMatch  var(--at-cycle) steps(1) infinite; }
+.at-swap   .at-cell { animation: atSwap   var(--at-cycle) steps(1) infinite; }
+@keyframes atOffer {
+  0%,100% { border-color: var(--c-offer); filter: none; transform: translateY(0); box-shadow: 0 4px 0 0 var(--at-ink); }
+  3% { transform: translateY(-3px); box-shadow: 0 7px 0 0 var(--at-ink); }
+  26%,99% { border-color: var(--c-offer); filter: saturate(.7) brightness(.82); } }
+@keyframes atHidden {
+  0%,24% { border-color: var(--at-dim); filter: saturate(.25) brightness(.7); }
+  27% { border-color: var(--c-hidden); filter: none; transform: translateY(-3px); box-shadow: 0 7px 0 0 var(--at-ink); }
+  50%,100% { border-color: var(--c-hidden); filter: saturate(.7) brightness(.85); transform: translateY(0); box-shadow: 0 4px 0 0 var(--at-ink); } }
+@keyframes atMatch {
+  0%,49% { border-color: var(--at-dim); filter: saturate(.25) brightness(.7); }
+  52% { border-color: var(--c-match); filter: none; transform: translateY(-3px); box-shadow: 0 8px 0 0 var(--at-ink); }
+  75%,100% { border-color: var(--c-match); filter: saturate(.8) brightness(1); transform: translateY(0); box-shadow: 0 4px 0 0 var(--at-ink); } }
+@keyframes atSwap {
+  0%,74% { border-color: var(--at-dim); filter: saturate(.25) brightness(.7); }
+  77% { border-color: var(--c-swap); filter: none; transform: translateY(-3px); box-shadow: 0 7px 0 0 var(--at-ink); }
+  92%,100% { border-color: var(--c-swap); filter: saturate(.85) brightness(1); transform: translateY(0); box-shadow: 0 4px 0 0 var(--at-ink); } }
+
+/* arrival sparks */
+.at-spark { position: absolute; width: 3px; height: 3px; background: #FFE98A; opacity: 0; }
+.s-t { top: -6px; left: 50%; margin-left: -1.5px; } .s-r { right: -6px; top: 50%; margin-top: -1.5px; }
+.s-b { bottom: -6px; left: 50%; margin-left: -1.5px; } .s-l { left: -6px; top: 50%; margin-top: -1.5px; }
+.at-offer  .at-spark { animation: atSpark var(--at-cycle) steps(2) infinite; }
+.at-hidden .at-spark { animation: atSpark var(--at-cycle) steps(2) infinite; animation-delay: calc(var(--at-cycle) / 4); }
+.at-match  .at-spark { animation: atSpark var(--at-cycle) steps(2) infinite; animation-delay: calc(var(--at-cycle) / 2); }
+.at-swap   .at-spark { animation: atSpark var(--at-cycle) steps(2) infinite; animation-delay: calc(var(--at-cycle) * .75); }
+@keyframes atSpark { 0%,7% { opacity: 1; transform: scale(1.6); } 14%,100% { opacity: 0; transform: scale(1); } }
+
+.at-glyph-svg { display: block; }
+
+/* 01 coin drops into the sealed ticket */
+.at-offer .at-coin-drop { transform-box: fill-box; transform-origin: center; animation: atDrop var(--at-cycle) steps(4) infinite; }
+@keyframes atDrop { 0% { transform: translateY(-7px); } 8% { transform: translateY(0); } 100% { transform: translateY(0); } }
+
+/* 02 the shackle clicks shut on the lock beat */
+.at-hidden .at-shackle { transform-box: fill-box; transform-origin: center; animation: atClick var(--at-cycle) steps(2) infinite; animation-delay: calc(var(--at-cycle) / 4); }
+@keyframes atClick { 0% { transform: translateY(-2px); } 8%,100% { transform: translateY(0); } }
+
+/* 03 the Crossed brand mark snaps in on the match beat */
+.at-match .at-badge { transform-box: fill-box; transform-origin: center; animation: atReveal var(--at-cycle) steps(1) infinite; }
+@keyframes atReveal { 0%,49% { transform: scale(0); opacity: 0; } 50% { transform: scale(1); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
+
+/* 04 the two token coins trade places */
+.at-swap .at-swapL { animation: atSL var(--at-cycle) steps(6) infinite; }
+.at-swap .at-swapR { animation: atSR var(--at-cycle) steps(6) infinite; }
+@keyframes atSL { 0%,74% { transform: translateX(0); } 88%,100% { transform: translateX(10px); } }
+@keyframes atSR { 0%,74% { transform: translateX(0); } 88%,100% { transform: translateX(-10px); } }
+
+.at-label { font-size: 9px; color: #FBF3E0; line-height: 1.4; max-width: 13ch; }
+.at-cap   { font-size: 7px; color: var(--at-dim); line-height: 1.4; max-width: 14ch; font-family: var(--font-label); }
+
+@media (max-width: 640px) {
+  .at-track, .at-sprite, .at-fill { display: none; }
+  .at-nodes { grid-template-columns: 1fr; gap: 18px; }
+  .at-node { flex-direction: row; text-align: left; gap: 14px; }
+  .at-label, .at-cap { max-width: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .at-bg::before, .at-stars, .at-scan, .at-sprite, .at-fill,
+  .at-cell, .at-spark, .at-coin-drop, .at-shackle, .at-badge, .at-swapL, .at-swapR { animation: none !important; }
+  .at-sprite { display: none; }
+  .at-fill   { inset: 0 0 0 0; opacity: 1; }
+  .at-offer  .at-cell { border-color: var(--c-offer);  filter: none; }
+  .at-hidden .at-cell { border-color: var(--c-hidden); filter: none; }
+  .at-match  .at-cell { border-color: var(--c-match);  filter: none; }
+  .at-swap   .at-cell { border-color: var(--c-swap);   filter: none; }
+  .at-match  .at-badge { transform: scale(1); opacity: 1; }
+}

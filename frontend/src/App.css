@@ -1,0 +1,127 @@
+/* Palette, fonts, and base now come from index.css (arcade pixel theme).
+   The component rules below are recolored by the shared CSS variables and
+   overridden by the pixel block appended to Landing.css. */
+.app { max-width: 880px; margin: 0 auto; padding: 20px 16px 80px; }
+
+/* dark-pool two-column layout: swap (main) + pool panel (aside) */
+.dp-grid { display: grid; grid-template-columns: 1fr; column-gap: 16px; align-items: start; }
+@media (min-width: 780px) { .dp-grid { grid-template-columns: minmax(0, 1fr) 300px; } }
+.dp-aside { display: flex; flex-direction: column; }
+.pool-list { display: flex; flex-direction: column; }
+.pool-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 11px 0; border-bottom: 2px dashed var(--border); }
+.pool-row:last-child { border-bottom: 0; }
+.pool-row .sym { display: inline-flex; align-items: center; gap: 8px; font-family: var(--font-label); font-size: 12px; text-transform: uppercase; color: var(--muted); }
+.pool-row .amt { font-family: var(--font-body); font-size: 21px; color: var(--fg); display: inline-flex; flex-direction: column; align-items: flex-end; gap: 2px; line-height: 1.15; }
+.pool-row .mine { font-family: var(--font-label); font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--good); }
+
+/* custom token dropdown (native <select> popups can't be themed) */
+.tok-wrap { position: relative; display: inline-flex; }
+.tok-menu { position: absolute; top: calc(100% + 6px); right: 0; z-index: 40; min-width: 128px;
+  background: var(--card); border: 2px solid var(--border); box-shadow: var(--shadow); image-rendering: pixelated; }
+.tok-opt { width: 100%; display: flex; align-items: center; gap: 8px; padding: 9px 12px; cursor: pointer;
+  background: none; border: 0; text-align: left; color: var(--fg);
+  font-family: var(--font-label); font-size: 12px; text-transform: uppercase; }
+.tok-opt:hover { background: var(--surface-2); }
+.tok-opt.sel { color: var(--coin); }
+
+/* top bar */
+.topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 26px; }
+.brand { display: flex; align-items: center; gap: 9px; }
+.brand .mark { width: 26px; height: 26px; background: url(/crossed-logo.svg) center/contain no-repeat; image-rendering: pixelated; position: relative; }
+.brand .mark::after { content: none; }
+.brand .name { font-weight: 700; font-size: 20px; letter-spacing: -.3px; }
+.walletline { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+.pill { font-size: 13px; font-weight: 500; padding: 6px 11px; border-radius: 999px; border: 1px solid var(--border); background: var(--card); color: var(--muted); display: inline-flex; gap: 6px; align-items: center; }
+.wallet-pill { color: var(--coin); font-family: var(--font-body); }
+.dot { width: 7px; height: 7px; border-radius: 999px; background: var(--good); }
+
+/* hero */
+.hero { margin: 4px 2px 22px; }
+.hero h1 { font-size: 26px; line-height: 1.18; letter-spacing: -.6px; margin: 0 0 8px; font-weight: 700; }
+.hero h1 .g { color: var(--muted); }
+.hero p { color: var(--muted); font-size: 14px; line-height: 1.6; margin: 0; max-width: 420px; }
+
+/* cards */
+.card { background: var(--card); border: 1px solid var(--border); box-shadow: var(--shadow); border-radius: var(--radius); padding: 22px; margin-bottom: 16px; }
+.card h2 { font-size: 16px; font-weight: 600; margin: 0 0 16px; letter-spacing: -.2px; }
+.row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.muted { color: var(--muted); font-size: 14.5px; }
+.tiny { color: var(--muted-2); font-size: 13px; }
+.tx-link { color: var(--bbb); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+.tx-link:hover { color: var(--coin); }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+/* swap / offer */
+.swap { display: grid; gap: 6px; }
+.leg { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 13px 14px; transition: border-color .15s ease; }
+.leg:focus-within { border-color: var(--muted-2); }
+.leg label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 7px; font-weight: 500; }
+.leg .legrow { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.leg input { border: none; background: transparent; font-size: 26px; font-weight: 600; width: 100%; color: var(--fg); outline: none; letter-spacing: -.5px; }
+.leg input::placeholder { color: var(--muted-2); }
+
+/* token badge (shadcn outline badge + dot) */
+.chip { display: inline-flex; align-items: center; gap: 7px; padding: 7px 13px; border-radius: 999px; font-weight: 600; font-size: 15px; color: var(--fg); background: var(--card); border: 1px solid var(--border); white-space: nowrap; }
+.chip::before { content: ""; width: 8px; height: 8px; border-radius: 999px; }
+.chip.aaa::before { background: var(--aaa); }
+.chip.bbb::before { background: var(--bbb); }
+
+.swap-mid { display: flex; justify-content: center; margin: -13px 0; position: relative; z-index: 2; }
+.swap-mid .icon { width: 30px; height: 30px; border-radius: 8px; background: var(--card); border: 1px solid var(--border); display: grid; place-items: center; box-shadow: var(--shadow); color: var(--muted); }
+
+/* inputs / selects */
+select, .text-in { border: 1px solid var(--border); background: var(--card); border-radius: var(--radius-sm); padding: 9px 11px; font-size: 14px; color: var(--fg); font-family: inherit; outline: none; transition: border-color .15s, box-shadow .15s; cursor: pointer; }
+select:focus, .text-in:focus { border-color: var(--fg); box-shadow: 0 0 0 3px rgba(28,25,23,.08); }
+
+/* buttons — solid, no gradient */
+.btn { width: 100%; border: 1px solid var(--primary); cursor: pointer; font-family: inherit; font-weight: 600; font-size: 17px; padding: 14px 18px; border-radius: var(--radius-sm); color: var(--primary-fg); background: var(--primary); box-shadow: var(--shadow); transition: background .15s ease, opacity .15s ease, transform .05s ease; }
+.btn:hover:not(:disabled) { background: #292524; }
+.btn:active:not(:disabled) { transform: translateY(.5px); }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.btn.good { background: var(--good); border-color: var(--good); }
+.btn.good:hover:not(:disabled) { background: #15803d; }
+.btn.ghost { background: var(--card); color: var(--fg); border: 1px solid var(--border); box-shadow: none; font-weight: 500; }
+.btn.ghost:hover:not(:disabled) { background: #f5f5f4; }
+.btn.sm { width: auto; padding: 8px 14px; font-size: 13px; }
+
+/* desks */
+.desks { list-style: none; padding: 0; margin: 8px 0 0; display: grid; gap: 8px; }
+.desks li { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; padding: 10px 12px; min-width: 0; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--card); }
+.avatar { width: 28px; height: 28px; border-radius: 8px; background: var(--bg); border: 1px solid var(--border); display: grid; place-items: center; font-weight: 600; color: var(--muted); font-size: 12px; }
+.deskname { flex: 1 1 100%; min-width: 0; display: flex; align-items: center; gap: 10px; font-weight: 500; font-size: 14px; overflow-wrap: anywhere; }
+/* second line of a desk row: status + tx on the left, actions pushed to the right; wraps cleanly in the narrow aside */
+.desk-meta { flex: 1 1 100%; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.desk-actions { margin-left: auto; display: inline-flex; gap: 6px; flex-shrink: 0; }
+
+/* balances */
+.bals { display: flex; gap: 8px; }
+.bal { flex: 1; text-align: left; padding: 12px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--bg); }
+.bal .v { font-weight: 700; font-size: 23px; letter-spacing: -.5px; }
+.bal .k { font-size: 13px; color: var(--muted); margin-top: 3px; }
+
+/* match */
+.match { border-color: #bbf7d0; background: var(--good-bg); }
+.match h2 { color: #166534; }
+.match .muted { color: #15803d; }
+
+/* activity */
+.feed { display: grid; gap: 8px; max-height: 220px; overflow: auto; }
+.ev { display: flex; gap: 10px; align-items: baseline; font-size: 14.5px; color: var(--fg); }
+.ev .t { color: var(--muted-2); font-size: 11px; font-family: ui-monospace, monospace; min-width: 52px; flex-shrink: 0; }
+.empty { color: var(--muted-2); font-size: 13px; text-align: center; padding: 6px; }
+
+.foot { text-align: center; color: var(--muted); font-size: 13px; line-height: 1.6; margin-top: 16px; padding: 0 14px; }
+
+/* transient status line (connection / setup / errors — NOT swap activity) */
+.statusbar { display: flex; gap: 10px; align-items: baseline; margin-bottom: 16px; padding: 10px 14px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); font-size: 14.5px; color: var(--fg); }
+.statusbar .t { color: var(--muted-2); font-size: 11px; font-family: ui-monospace, monospace; min-width: 52px; flex-shrink: 0; }
+
+/* info button + hover/focus tooltip (replaces the always-on footnote) */
+.info-wrap { position: relative; display: inline-flex; }
+.info-btn { width: 24px; height: 24px; padding: 0; border-radius: 999px; border: 1px solid var(--border); background: var(--card); color: var(--muted); font-family: var(--font-label); font-size: 12px; line-height: 1; cursor: help; display: inline-flex; align-items: center; justify-content: center; }
+.info-btn:hover, .info-btn:focus-visible { border-color: var(--coin); color: var(--coin); outline: none; }
+.info-tip { position: absolute; top: calc(100% + 10px); right: 0; width: 320px; max-width: 78vw; z-index: 60; background: var(--card); color: var(--muted); border: 1px solid var(--border); box-shadow: var(--shadow); border-radius: var(--radius); padding: 13px 15px; font-size: 14px; line-height: 1.6; text-align: left; text-transform: none; letter-spacing: .3px; opacity: 0; visibility: hidden; transform: translateY(-4px); transition: opacity .12s ease, transform .12s ease, visibility .12s; }
+.info-wrap:hover .info-tip, .info-btn:focus-visible + .info-tip { opacity: 1; visibility: visible; transform: translateY(0); }
+
+@media (max-width: 480px) { .app { padding: 16px 12px 70px; } .hero h1 { font-size: 23px; } }
+@media (prefers-reduced-motion: reduce) { .btn, .leg, select { transition: none; } }
