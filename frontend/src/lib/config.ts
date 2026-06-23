@@ -47,5 +47,20 @@ export const CONFIG = {
 
   EPOCH: 7n,
   EXPIRY: 1800000000n,
+
+  // v2 gap-closure feature flags. ALL default false so the live demo stays byte-for-byte
+  // identical until each backend feature is verified green, then flipped here. See
+  // docs/CROSSED_V2_PLAN.md. Each new UI piece is gated behind exactly one of these.
+  FEATURES: {
+    partialFills: false,
+    tif: false,
+    maq: false,
+    tiers: false,
+    killSwitch: false,
+    viewingKeys: false,
+    tca: false,
+    passkey: false,
+    refPrice: false,
+  },
 };
 export const isChainWired = () => CONFIG.CONTRACT_ID.length > 0;

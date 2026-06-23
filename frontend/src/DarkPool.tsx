@@ -6,6 +6,11 @@ import { CONFIG } from "./lib/config";
 import { TokenIcon } from "./components/TokenIcon";
 import { ThemeToggle } from "./components/ThemeToggle";
 import { connectWallet, disconnectWallet, restoreWallet } from "./lib/wallet";
+// v2 gap-closure components — each rendered only behind its CONFIG.FEATURES flag, so with
+// all flags false this file renders byte-for-byte the current live demo.
+import { KillSwitchBanner } from "./components/KillSwitchBanner";
+import { AdvancedOrderFields, type AdvancedOrder } from "./components/AdvancedOrderFields";
+import { PartialFillRow } from "./components/PartialFillRow";
 
 // Dark-pool app surface. The pool trades USDC (base / TOKEN_A) vs XLM (quote / TOKEN_B),
 // but the pool itself can custody many assets — the "In the pool" panel lists them generically.
@@ -139,7 +144,18 @@ async function verifyRegistration(r: Registration): Promise<boolean> {
   }
 }
 
-export default function DarkPool({ onHome, onFaucet }: { onHome: () => void; onFaucet: () => void }) {
+// v2 nav callbacks are optional so the existing call sites (and any flag-off path) stay valid.
+type DarkPoolProps = {
+  onHome: () => void;
+  onFaucet: () => void;
+  onTca?: () => void;
+  onViewingKeys?: () => void;
+};
+
+const ADVANCED_ON = CONFIG.FEATURES.tif || CONFIG.FEATURES.maq || CONFIG.FEATURES.tiers;
+const DEFAULT_ADVANCED: AdvancedOrder = { tif: "GTT" };
+
+export default function DarkPool({ onHome, onFaucet, onTca, onViewingKeys }: DarkPoolProps) {
   const [ready, setReady] = useState(false);
   const [addr, setAddr] = useState("");
   const [reg, setReg] = useState<Registration | null>(null);
@@ -150,11 +166,20 @@ export default function DarkPool({ onHome, onFaucet }: { onHome: () => void; onF
   const [toTok, setToTok] = useState<Tok>("XLM");
   const [payAmt, setPayAmt] = useState("10");
   const [getAmt, setGetAmt] = useState("25");
-  const [openSel, setOpenSel] = useState<null | "from" | "to">(null);
+  const [openSel, setOpenSel] = useState<null | "from" | "to" | "withdraw">(null);
   const [busy, setBusy] = useState(false);
   const [fills, setFills] = useState<any[]>([]);
   const [openOrders, setOpenOrders] = useState<OpenOrder[]>([]);
   const [status, setStatus] = useState<{ t: string; m: string } | null>(null);
+  // v2 (flag-gated) state. paused drives the kill-switch banner; advanced holds the extra
+  // order fields; withdrawAmt/withdrawTok drive the always-available withdraw control;
+  // passkeyOn is the passkey-custody opt-in. None of these affect the flags-off render path.
+  const [paused] = useState(false);
+  const [pauseReason] = useState<string | undefined>(undefined);
+  const [advanced, setAdvanced] = useState<AdvancedOrder>(DEFAULT_ADVANCED);
+  const [withdrawTok, setWithdrawTok] = useState<Tok>("USDC");
+  const [withdrawAmt, setWithdrawAmt] = useState("");
+  const [passkeyOn, setPasskeyOn] = useState(false);
   const meRef = useRef<Identity | null>(null);
   const say = (m: string) => setStatus({ t: nowt(), m });
 
@@ -411,6 +436,24 @@ export default function DarkPool({ onHome, onFaucet }: { onHome: () => void; onF
     setBusy(false);
   }
 
+  // Always-available withdraw of un-reserved escrow. Per CROSSED_V2_PLAN the venue pause
+  // gates place/settle but NEVER withdraw, so this stays enabled even while paused.
+  async function withdraw() {
+    if (!addr) { say("Connect a Stellar wallet first"); return; }
+    const amtA = toAtomic(withdrawAmt);
+    if (amtA <= 0n) { say("Enter an amount to withdraw"); return; }
+    if (amtA > toAtomic(escOf(withdrawTok))) { say(`Only ${escOf(withdrawTok)} ${withdrawTok} is withdrawable`); return; }
+    setBusy(true);
+    try {
+      say(`Approve once to withdraw ${withdrawAmt} ${withdrawTok}…`);
+      const tx = await chain.dpWithdraw(tokenC(withdrawTok), amtA.toString());
+      setWithdrawAmt("");
+      await refresh();
+      say(`Withdrew ${withdrawAmt} ${withdrawTok}. ${short(tx)}`);
+    } catch (e: any) { say("Withdraw failed: " + (e?.message || e)); }
+    setBusy(false);
+  }
+
   async function runMatch() {
     setBusy(true);
     try {
@@ -429,7 +472,7 @@ export default function DarkPool({ onHome, onFaucet }: { onHome: () => void; onF
 
   const myFills = fills.filter((f) => f.sell_owner === addr || f.buy_owner === addr);
 
-  const tokenSelect = (value: Tok, onPick: (t: Tok) => void, which: "from" | "to") => (
+  const tokenSelect = (value: Tok, onPick: (t: Tok) => void, which: "from" | "to" | "withdraw") => (
     <span className="tok-wrap">
       <span className="chip" role="button" tabIndex={0}
         onClick={(e) => { e.stopPropagation(); setOpenSel(openSel === which ? null : which); }}
@@ -475,6 +518,19 @@ export default function DarkPool({ onHome, onFaucet }: { onHome: () => void; onF
             const sold = f.sell_owner === addr;
             const p = pairById(Number(f.pair_id));
             const base = p?.base ?? "USDC", quote = p?.quote ?? "XLM";
+            // v2 partial fills: when the backend reports a residual change-note, render the
+            // dedicated PartialFillRow. Gated behind FEATURES.partialFills; with the flag off
+            // (and on the v1 backend, which carries no residual) the standard row always renders.
+            if (CONFIG.FEATURES.partialFills && (f.residual_base != null || f.fill_base != null)) {
+              return (
+                <PartialFillRow key={`f${i}`} fill={{
+                  base, quote,
+                  filledBase: fmt(f.fill_base ?? f.base_amount),
+                  residualBase: f.residual_base != null ? fmt(f.residual_base) : undefined,
+                  tx: f.tx,
+                }} />
+              );
+            }
             return (
               <li key={`f${i}`} style={{ borderColor: "var(--good)" }}>
                 <span className="deskname">{sold ? `Sold ${fmt(f.base_amount)} ${base} → +${fmt(f.quote_amount)} ${quote}` : `Bought ${fmt(f.base_amount)} ${base} for ${fmt(f.quote_amount)} ${quote}`}</span>
@@ -497,6 +553,12 @@ export default function DarkPool({ onHome, onFaucet }: { onHome: () => void; onF
           <span className="pill"><span className="dot" /> Dark pool · Testnet</span>
           <ThemeToggle />
           <button className="btn ghost sm" type="button" onClick={onFaucet}>Faucet</button>
+          {CONFIG.FEATURES.tca && onTca && (
+            <button className="btn ghost sm" type="button" onClick={onTca}>Execution</button>
+          )}
+          {CONFIG.FEATURES.viewingKeys && onViewingKeys && (
+            <button className="btn ghost sm" type="button" onClick={onViewingKeys}>Viewing key</button>
+          )}
           <a className="btn ghost sm" href={POOL_EXPLORER} target="_blank" rel="noopener noreferrer"
             title="View the pool's full on-chain history on Stellar Explorer"
             style={{ textDecoration: "none", display: "inline-flex", alignItems: "center" }}>Explorer ↗</a>
@@ -508,6 +570,12 @@ export default function DarkPool({ onHome, onFaucet }: { onHome: () => void; onF
           ) : null}
         </div>
       </div>
+
+      {CONFIG.FEATURES.killSwitch && (
+        <div style={{ marginBottom: 12 }}>
+          <KillSwitchBanner paused={paused} reason={pauseReason} />
+        </div>
+      )}
 
       {status && (
         <div className="statusbar"><span className="t">{status.t}</span><span>{status.m}</span></div>
@@ -579,6 +647,11 @@ export default function DarkPool({ onHome, onFaucet }: { onHome: () => void; onF
                 {payA > 0n && getA > 0n ? `≈ 1 ${fromTok} = ${rate.toLocaleString(undefined, { maximumFractionDigits: 6 })} ${toTok}. ` : ""}
                 Sealed — the pair, amounts and price stay hidden on-chain until a matching order crosses you, then it settles at the midpoint.
               </p>
+              {ADVANCED_ON && (
+                <div style={{ margin: "0 0 12px" }}>
+                  <AdvancedOrderFields value={advanced} onChange={setAdvanced} />
+                </div>
+              )}
               <button className="btn" disabled={busy || overBal} onClick={placeOrder}>{busy ? "Working…" : "Place sealed order"}</button>
               <button className="btn ghost" style={{ width: "100%", marginTop: 8 }} disabled={busy} onClick={runMatch}>Run batch match</button>
             </div>
@@ -607,6 +680,51 @@ export default function DarkPool({ onHome, onFaucet }: { onHome: () => void; onF
               </div>
               <p className="tiny mono" style={{ marginTop: 12, marginBottom: 0, opacity: 0.7 }}>{short(addr)} · member #{reg.index}</p>
             </div>
+
+            {CONFIG.FEATURES.killSwitch && (
+              <div className="card">
+                <div className="row" style={{ marginBottom: 8 }}>
+                  <h2 style={{ margin: 0 }}>Withdraw</h2>
+                  <span className="tiny muted">always available</span>
+                </div>
+                <p className="tiny muted" style={{ marginTop: 0 }}>
+                  Pull un-reserved escrow back to your wallet. Withdraw is never blocked by a venue pause.
+                </p>
+                <div className="leg">
+                  <div className="legrow">
+                    <input value={withdrawAmt} onChange={(e) => setWithdrawAmt(e.target.value)} inputMode="decimal" placeholder="0" />
+                    {tokenSelect(withdrawTok, setWithdrawTok, "withdraw")}
+                  </div>
+                  <div className="tiny muted" style={{ marginTop: 6 }}>
+                    Escrowed {num(escOf(withdrawTok))} {withdrawTok} ·{" "}
+                    <button onClick={() => setWithdrawAmt(escOf(withdrawTok))}
+                      style={{ background: "none", border: 0, color: "var(--bbb)", cursor: "pointer", font: "inherit", padding: 0, textDecoration: "underline" }}>Max</button>
+                  </div>
+                </div>
+                <button className="btn ghost" style={{ width: "100%", marginTop: 10 }} disabled={busy} onClick={() => void withdraw()}>
+                  {busy ? "Working…" : "Withdraw"}
+                </button>
+              </div>
+            )}
+
+            {CONFIG.FEATURES.passkey && (
+              <div className="card">
+                <div className="row" style={{ marginBottom: 8 }}>
+                  <h2 style={{ margin: 0 }}>Passkey custody</h2>
+                  <span className={`pill ${passkeyOn ? "" : ""}`}>{passkeyOn ? "On" : "Off"}</span>
+                </div>
+                <p className="tiny muted" style={{ marginTop: 0 }}>
+                  Seal your pool identity behind a device passkey (WebAuthn) instead of plaintext browser storage.
+                </p>
+                <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", userSelect: "none" }}>
+                  <input type="checkbox" checked={passkeyOn} disabled={busy}
+                    onChange={(e) => { setPasskeyOn(e.target.checked); say(e.target.checked ? "Passkey custody enabled — your identity will be sealed on next unlock." : "Passkey custody disabled."); }}
+                    style={{ width: 16, height: 16, cursor: "pointer" }} />
+                  <span className="tiny">Use a passkey to protect my pool identity</span>
+                </label>
+              </div>
+            )}
+
             {activityCard}
           </aside>
         </div>

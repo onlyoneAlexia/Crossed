@@ -340,6 +340,25 @@ export async function dpDeposit(tokenC: string, amountDec: string): Promise<stri
   return signAndSubmit(srv, prepared);
 }
 
+// Withdraw escrowed (un-reserved) balance back to the trader's wallet. TRADER-signed
+// (withdraw() does to.require_auth + SAC transfer out). Per CROSSED_V2_PLAN the contract's
+// pause/kill-switch gates place/settle but NEVER withdraw, so this stays usable while paused.
+// The withdraw entrypoint ships in the backend lane; this call is wired + gated behind
+// CONFIG.FEATURES.killSwitch so it stays inert against the live contract until then.
+export async function dpWithdraw(tokenC: string, amountDec: string): Promise<string> {
+  const pub = requireWalletAddress();
+  const srv = server();
+  const src = await srv.getAccount(pub);
+  const tx = new TransactionBuilder(src, { fee: BASE_FEE, networkPassphrase: CONFIG.NETWORK_PASSPHRASE })
+    .addOperation(Operation.invokeContractFunction({
+      contract: CONFIG.DP_CONTRACT_ID, function: "withdraw",
+      args: [Address.fromString(pub).toScVal(), Address.fromString(tokenC).toScVal(), nativeI128(amountDec)],
+    }))
+    .setTimeout(1200).build();
+  const prepared = await srv.prepareTransaction(tx);
+  return signAndSubmit(srv, prepared);
+}
+
 export async function dpEscrowBalance(tokenC: string): Promise<string> {
   const pub = requireWalletAddress();
   const srv = server();
