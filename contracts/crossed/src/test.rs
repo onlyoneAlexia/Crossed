@@ -5,9 +5,9 @@ use crate::{fixtures_cancel_order, fixtures_dpmatch, fixtures_intent, fixtures_i
 use soroban_sdk::{
     address_payload::AddressPayload,
     contract, contractimpl, contracttype,
-    testutils::{Address as _, Ledger as _},
+    testutils::{Address as _, Ledger as _, MockAuth, MockAuthInvoke},
     token::TokenClient,
-    Address, BytesN, Env, MuxedAddress,
+    Address, BytesN, Env, IntoVal, MuxedAddress,
 };
 
 const EPOCH: u64 = 7;
@@ -159,16 +159,23 @@ fn setup_at(contract_id_raw: [u8; 32]) -> (Env, CrossedClient<'static>, Address,
     env.ledger().set_sequence_number(100);
     env.ledger().set_timestamp(1_700_000_000);
 
-    let crossed_address = contract_address(&env, &contract_id);
-    env.register_at(&crossed_address, Crossed, ());
-    let client = CrossedClient::new(&env, &crossed_address);
     let admin = Address::generate(&env);
     let coordinator = Address::generate(&env);
     let owner_a = Address::generate(&env);
     let owner_b = Address::generate(&env);
-    client
-        .mock_all_auths()
-        .initialize(&admin, &coordinator, &chain_id, &contract_id);
+    let crossed_address = contract_address(&env, &contract_id);
+    env.mock_auths(&[MockAuth {
+        address: &admin,
+        invoke: &MockAuthInvoke {
+            contract: &crossed_address,
+            fn_name: "__constructor",
+            args: (&admin, &coordinator, &chain_id).into_val(&env),
+            sub_invokes: &[],
+        },
+    }]);
+    env.register_at(&crossed_address, Crossed, (&admin, &coordinator, &chain_id));
+    env.set_auths(&[]);
+    let client = CrossedClient::new(&env, &crossed_address);
     (env, client, coordinator, owner_a, owner_b, admin)
 }
 

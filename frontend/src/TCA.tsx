@@ -60,6 +60,7 @@ export default function TCA(props: Props) {
           <span className="pill"><span className="dot" /> Execution quality · Testnet</span>
           <ThemeToggle />
           <button className="px-btn px-btn--sm" type="button" disabled={loading} onClick={() => void load()}>
+            <span className={loading ? "px-spin" : undefined} style={{ display: "inline-block", marginRight: 6 }}>↻</span>
             {loading ? "Loading…" : "Refresh"}
           </button>
           <a className="px-btn px-btn--sm px-btn--ghost" href={explorer} target="_blank" rel="noopener noreferrer"
@@ -77,7 +78,14 @@ export default function TCA(props: Props) {
       </div>
 
       {loading && !data && (
-        <div className="px-card"><p className="muted" style={{ margin: 0 }}>Reading settlement events…</p></div>
+        <div className="px-card">
+          <p className="muted" style={{ margin: 0, display: "inline-flex", alignItems: "center", gap: 10 }}>
+            Reading settlement events <span className="px-dots" aria-hidden="true"><i /><i /><i /></span>
+          </p>
+          <div aria-hidden="true" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 14, marginTop: 16 }}>
+            {Array.from({ length: 5 }).map((_, i) => <div key={i} className="px-skel" style={{ height: 58 }} />)}
+          </div>
+        </div>
       )}
 
       {err && (
@@ -197,7 +205,7 @@ function Filled({ data }: { data: TcaMetrics }) {
 
 function EmptyState({ contractId, explorer }: { contractId: string; explorer: string }) {
   return (
-    <div className="px-card px-card--pop" style={{ textAlign: "center", padding: "40px 24px" }}>
+    <div className="px-card px-card--pop" style={{ textAlign: "center", padding: "64px 24px" }}>
       <div className="px-stat__v" style={{ fontSize: 22 }}>No fills yet</div>
       <p className="muted" style={{ maxWidth: 460, margin: "12px auto 18px" }}>
         No settlement events were found for this contract in the recent ledger window. Once orders
@@ -206,6 +214,14 @@ function EmptyState({ contractId, explorer }: { contractId: string; explorer: st
       <p className="tiny mono" style={{ margin: "0 0 14px", opacity: 0.7 }}>{short(contractId)}</p>
       <a className="px-btn px-btn--ghost px-btn--sm" href={explorer} target="_blank" rel="noopener noreferrer"
         style={{ textDecoration: "none" }}>View contract on Explorer ↗</a>
+      {/* skeleton preview of the metrics grid that fills will populate */}
+      <div aria-hidden="true" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 14, marginTop: 32, opacity: 0.6 }}>
+        {["Fills settled", "Unique matches", "Active pairs", "Quote volume", "Avg dispersion", "VWAP"].map((k) => (
+          <div key={k} className="px-skel" style={{ height: 70, display: "grid", placeItems: "center" }}>
+            <span className="px-stat__k">{k}</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

@@ -63,8 +63,8 @@ function Glyph({ kind }: { kind: NodeDef["kind"] }) {
   // 04 — the two real pixel token coins trade places
   return (
     <svg {...common} className="at-glyph-svg">
-      <image className="at-swapL" href="/tokens/usdc-px.svg" x="2" y="7" width="10" height="10" />
-      <image className="at-swapR" href="/tokens/xlm-px.svg" x="12" y="7" width="10" height="10" />
+      <image className="at-swapL" href="/assets/tokens/usdc-coin24.svg" x="2" y="7" width="10" height="10" />
+      <image className="at-swapR" href="/assets/tokens/xlm-coin24.svg" x="12" y="7" width="10" height="10" />
     </svg>
   );
 }

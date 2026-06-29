@@ -9,3 +9,31 @@ target/
 dist/
 *.log
 .DS_Store
+
+# Coordinator runtime state (rebuilt from chain on boot)
+.state*.json
+.decisions.log
+coordinator/.state*.json
+coordinator/.decisions.log
+
+# Scratch / temp
+*.tmp
+*.bak
+_repro*
+
+# Circuit build output — intermediate/regenerable (300MB+). The app ships only the
+# artifacts it actually loads in frontend/public/circuits, which stay tracked.
+circuits/build*/
+
+# Visual-review / screenshot scratch
+shots/
+
+# Machine-local agent + editor settings
+.claude/settings.local.json
+
+# Markdown: the root README + docs/DEPLOYMENT.md are the only tracked docs.
+# Everything else (CHANGES.md, backend/INTEGRATION.md, sub-package READMEs, working
+# notes) stays local. Add a `!/path/to/keep.md` line to whitelist any you want tracked.
+*.md
+!/README.md
+!/docs/DEPLOYMENT.md

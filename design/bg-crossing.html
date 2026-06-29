@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Crossed — The Crossing</title>
+<style>
+  :root {
+    --pink: #ff4f9a;
+    --pink-hi: #fff4fb;
+    --cyan: #7df9ff;
+    --green: #5dff8f;
+    --gold: #ffcf3f;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 100%; height: 100%;
+    background: #1a1033;
+    overflow: hidden;
+  }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    color: #fff4fb;
+  }
+
+  /* ---- Canvas behind everything ---- */
+  #bg {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    z-index: 0;
+  }
+
+  /* ---- Readability overlay ---- */
+  .overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;
+  }
+
+  /* Top bar */
+  .topbar {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 22px;
+  }
+  .wordmark {
+    font-weight: 800;
+    font-size: 20px;
+    letter-spacing: 0.5px;
+    color: #fff4fb;
+    text-shadow: 0 1px 0 rgba(0,0,0,0.55);
+  }
+  .wordmark .x {
+    color: var(--pink);
+  }
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #d8ffe6;
+    background: rgba(20,12,40,0.72);
+    border: 1px solid rgba(93,255,143,0.5);
+    border-radius: 999px;
+    padding: 5px 11px 5px 9px;
+    backdrop-filter: blur(2px);
+  }
+  .pill .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 6px rgba(93,255,143,0.8);
+  }
+
+  /* Trade card */
+  .card-wrap {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .card {
+    width: 360px;
+    max-width: calc(100vw - 36px);
+    background: rgba(20,12,40,0.72);
+    border: 2px solid var(--pink);
+    border-radius: 14px;
+    padding: 20px 20px 22px;
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.10),
+      inset 0 0 24px rgba(255,79,154,0.10),
+      0 18px 50px rgba(0,0,0,0.45);
+    backdrop-filter: blur(3px);
+  }
+  .card h2 {
+    font-size: 17px;
+    font-weight: 700;
+    margin-bottom: 16px;
+    color: #fff4fb;
+    letter-spacing: 0.2px;
+  }
+  .field {
+    border: 1px solid rgba(255,79,154,0.35);
+    background: rgba(10,6,24,0.55);
+    border-radius: 10px;
+    padding: 9px 12px;
+    margin-bottom: 11px;
+  }
+  .field .lbl {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    color: rgba(255,244,251,0.6);
+    margin-bottom: 4px;
+  }
+  .field .row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+  }
+  .field .ph {
+    font-size: 13px;
+    color: rgba(255,244,251,0.45);
+  }
+  .field .amt {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 15px;
+    font-weight: 600;
+    color: #fff4fb;
+  }
+  .btn {
+    margin-top: 8px;
+    width: 100%;
+    text-align: center;
+    background: var(--pink);
+    color: #2a0a1a;
+    font-weight: 800;
+    font-size: 14px;
+    letter-spacing: 0.4px;
+    padding: 12px;
+    border-radius: 10px;
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.45),
+      0 6px 18px rgba(255,79,154,0.35);
+  }
+
+  /* Concept chip */
+  .concept {
+    position: fixed;
+    left: 14px;
+    bottom: 14px;
+    z-index: 3;
+    font-family: ui-monospace, monospace;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.6px;
+    color: var(--cyan);
+    background: rgba(20,12,40,0.72);
+    border: 1px solid rgba(125,249,255,0.4);
+    border-radius: 8px;
+    padding: 6px 10px;
+  }
+</style>
+</head>
+<body>
+  <canvas id="bg"></canvas>
+
+  <div class="overlay" aria-hidden="true">
+    <div class="topbar">
+      <div class="wordmark">Cross<span class="x">ed</span></div>
+      <div class="pill"><span class="dot"></span>Testnet</div>
+    </div>
+
+    <div class="card-wrap">
+      <div class="card">
+        <h2>Make a private offer</h2>
+        <div class="field">
+          <div class="lbl">You give</div>
+          <div class="row">
+            <span class="ph">USDC</span>
+            <span class="amt">1,250.00</span>
+          </div>
+        </div>
+        <div class="field">
+          <div class="lbl">You want</div>
+          <div class="row">
+            <span class="ph">XLM</span>
+            <span class="amt">10,416.67</span>
+          </div>
+        </div>
+        <div class="btn">Launch app</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="concept">CONCEPT: The Crossing</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var canvas = document.getElementById("bg");
+  var ctx = canvas.getContext("2d", { alpha: false });
+
+  var DPR = Math.min(window.devicePixelRatio || 1, 1.5);
+  var W = 0, H = 0;          // CSS pixels
+  var PW = 0, PH = 0;        // physical pixels
+
+  var reduceMotion = window.matchMedia &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  // ---- Palette ----
+  var SKY = ["#1a1033", "#241447", "#2d1a55", "#371f63", "#3c2168"];
+  var GREEN = "#5dff8f";
+  var PINK = "#ff4f9a";
+  var CYAN = "#7df9ff";
+  var WHITE = "#fff4fb";
+  var GOLD = "#ffcf3f";
+  var GOLD_HI = "#fff7c2";
+  var COIN_OUT = "#7a3b00";
+
+  // ---- Static background layer (sky bands) cached to offscreen ----
+  var skyCanvas = document.createElement("canvas");
+  var skyCtx = skyCanvas.getContext("2d");
+
+  // ---- Scanline overlay cached ----
+  var scanCanvas = document.createElement("canvas");
+  var scanCtx = scanCanvas.getContext("2d");
+
+  function buildSky() {
+    skyCanvas.width = PW;
+    skyCanvas.height = PH;
+    var bands = SKY.length;
+    var bandH = Math.ceil(PH / bands);
+    for (var i = 0; i < bands; i++) {
+      skyCtx.fillStyle = SKY[i];
+      skyCtx.fillRect(0, i * bandH, PW, bandH + 1);
+    }
+  }
+
+  function buildScan() {
+    scanCanvas.width = PW;
+    scanCanvas.height = PH;
+    scanCtx.clearRect(0, 0, PW, PH);
+    scanCtx.fillStyle = "rgba(0,0,0,0.10)";
+    for (var y = 0; y < PH; y += 2) {
+      scanCtx.fillRect(0, y, PW, 1);
+    }
+  }
+
+  // ---- Entities ----
+  var CELL = 28;             // grid cell css px
+  var gridScroll = 0;
+
+  var chips = [];            // sealed order chips
+  var bgSprites = [];        // dim drifting depth sprites
+  var bursts = [];           // X-burst effects
+  var matchTexts = [];       // "MATCHED" flashes
+
+  var spawnTimer = 0;
+  var matchTimer = 0;
+  var matchInterval = 2.0;   // seconds between hero matches
+
+  var centerX = 0;
+
+  function rand(a, b) { return a + Math.random() * (b - a); }
+  function pick(arr) { return arr[(Math.random() * arr.length) | 0]; }
+
+  // A chip = a tiny sealed envelope/lock drifting toward center
+  function makeChip(side) {
+    // side: "buy" (from left) or "sell" (from right)
+    var fromLeft = side === "buy";
+    var laneY;
+    var scale = 3;           // pixel block size for the 10x8 sprite
+    var spriteW = 12 * scale;
+    var y;
+    if (fromLeft) {
+      // buy lane: upper-ish band
+      laneY = H * rand(0.30, 0.46);
+    } else {
+      laneY = H * rand(0.54, 0.70);
+    }
+    y = laneY;
+    var speed = rand(46, 70);
+    return {
+      side: side,
+      x: fromLeft ? -spriteW : W + spriteW,
+      y: y,
+      vx: fromLeft ? speed : -speed,
+      scale: scale,
+      matched: false,
+      partner: null,
+      passed: false,
+      alpha: 1,
+      gone: false,
+      thread: 0
+    };
+  }
+
+  function spawnMatchPair() {
+    // create a buy and sell chip set to meet at center at same time
+    var scale = 3;
+    var spriteW = 12 * scale;
+    var laneY = H * rand(0.42, 0.58); // they'll converge to a shared y near center
+    var buyY = laneY - rand(8, 30);
+    var sellY = laneY + rand(8, 30);
+    var meetTime = rand(2.4, 3.2);
+
+    var buy = makeChip("buy");
+    buy.y = buyY;
+    buy.x = -spriteW;
+    buy.vx = (centerX - buy.x) / meetTime;
+
+    var sell = makeChip("sell");
+    sell.y = sellY;
+    sell.x = W + spriteW;
+    sell.vx = (centerX - sell.x) / meetTime;
+
+    buy.matched = true; sell.matched = true;
+    buy.partner = sell; sell.partner = buy;
+    buy.targetY = laneY; sell.targetY = laneY;
+    buy.crossed = false; sell.crossed = false;
+
+    chips.push(buy, sell);
+  }
+
+  function makeBgSprite() {
+    var type = pick(["coin", "star", "cross"]);
+    return {
+      type: type,
+      x: rand(0, W),
+      y: rand(70, H - 40),
+      vx: rand(-12, -4),
+      scale: rand(2, 3) | 0 || 2,
+      phase: rand(0, Math.PI * 2)
+    };
+  }
+
+  function initEntities() {
+    chips.length = 0;
+    bursts.length = 0;
+    matchTexts.length = 0;
+    bgSprites.length = 0;
+    centerX = Math.round(W / 2);
+    var n = Math.min(7, Math.max(4, Math.round(W / 320)));
+    for (var i = 0; i < n; i++) bgSprites.push(makeBgSprite());
+    spawnTimer = 0.4;
+    matchTimer = 1.0;
+  }
+
+  // ---- Drawing helpers (snapped flat blocks) ----
+  function px(ctx2, x, y, w, h, color) {
+    ctx2.fillStyle = color;
+    ctx2.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h));
+  }
+
+  // Sealed envelope/lock chip sprite, drawn from a small bitmap.
+  // 12 wide x 8 tall grid. accent depends on side.
+  function drawChip(c) {
+    var s = c.scale;
+    var ox = Math.round(c.x);
+    var oy = Math.round(c.y);
+    var accent = c.side === "buy" ? GREEN : PINK;
+    var body = "#2a1850";
+    var edge = "#0d0820";
+
+    ctx.save();
+    ctx.globalAlpha = c.alpha;
+
+    // envelope body (10x7)
+    // outline
+    px(ctx, ox, oy, 12 * s, 9 * s, edge);
+    // inner body
+    px(ctx, ox + s, oy + s, 10 * s, 7 * s, body);
+    // top accent strip (the "seal")
+    px(ctx, ox + s, oy + s, 10 * s, 1.5 * s, accent);
+
+    // envelope flap (V) drawn as two diagonal-ish blocks (pixel style)
+    px(ctx, ox + s, oy + s, 4 * s, s, edge);
+    px(ctx, ox + 7 * s, oy + s, 4 * s, s, edge);
+    px(ctx, ox + 4 * s, oy + 2 * s, 4 * s, s, edge);
+
+    // padlock glyph centered lower
+    var lx = ox + 4.5 * s;
+    var ly = oy + 4 * s;
+    // shackle (arc as blocks)
+    px(ctx, lx, ly, 3 * s, s, GOLD);
+    px(ctx, lx - 0.0, ly + s, s, s, GOLD);
+    px(ctx, lx + 2 * s, ly + s, s, s, GOLD);
+    // body of lock
+    px(ctx, lx - 0.5 * s, ly + 2 * s, 4 * s, 2.5 * s, GOLD);
+    px(ctx, lx + 1 * s, ly + 2.6 * s, s, s, COIN_OUT); // keyhole
+
+    ctx.restore();
+  }
+
+  // pixel X-burst: cross/star rays
+  function drawBurst(b) {
+    var t = b.t / b.dur;       // 0..1
+    if (t > 1) return;
+    var len = b.maxLen * t;
+    var fade = 1 - t;
+    var s = b.block;
+    var cx = b.x, cy = b.y;
+    ctx.save();
+    ctx.globalAlpha = fade;
+
+    // expanding ring of blocks along 8 directions
+    var dirs = [
+      [1, 0], [-1, 0], [0, 1], [0, -1],
+      [1, 1], [-1, 1], [1, -1], [-1, -1]
+    ];
+    var colorsByStep = [WHITE, CYAN, PINK, CYAN];
+    var steps = Math.max(1, Math.round(len / s));
+    for (var d = 0; d < dirs.length; d++) {
+      var dx = dirs[d][0], dy = dirs[d][1];
+      for (var k = 1; k <= steps; k++) {
+        var col = colorsByStep[k % colorsByStep.length];
+        var bx = cx + dx * k * s;
+        var by = cy + dy * k * s;
+        // taper ray width
+        var w = (k > steps - 2) ? s : s;
+        px(ctx, bx - s / 2, by - s / 2, w, w, col);
+      }
+    }
+    // bright core
+    px(ctx, cx - s, cy - s, 2 * s, 2 * s, WHITE);
+    // inner cross arms (thicker near center)
+    px(ctx, cx - s, cy - 2 * s, 2 * s, 4 * s, PINK);
+    px(ctx, cx - 2 * s, cy - s, 4 * s, 2 * s, CYAN);
+    px(ctx, cx - s, cy - s, 2 * s, 2 * s, WHITE);
+
+    ctx.restore();
+  }
+
+  // --- crisp pixel font for "MATCHED" (5x7 blocks) ---
+  var FONT = {
+    "M": ["10001","11011","10101","10001","10001","10001","10001"],
+    "A": ["01110","10001","10001","11111","10001","10001","10001"],
+    "T": ["11111","00100","00100","00100","00100","00100","00100"],
+    "C": ["01110","10001","10000","10000","10000","10001","01110"],
+    "H": ["10001","10001","10001","11111","10001","10001","10001"],
+    "E": ["11111","10000","10000","11110","10000","10000","11111"],
+    "D": ["11110","10001","10001","10001","10001","10001","11110"],
+    " ": ["00000","00000","00000","00000","00000","00000","00000"]
+  };
+
+  function drawPixelText(text, cx, cy, block, color, alpha) {
+    var glyphW = 5, glyphH = 7, gap = 1;
+    var totalW = text.length * (glyphW + gap) * block - gap * block;
+    var startX = cx - totalW / 2;
+    var startY = cy - (glyphH * block) / 2;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    // shadow for crispness against bright burst
+    for (var i = 0; i < text.length; i++) {
+      var g = FONT[text[i]] || FONT[" "];
+      var gx = startX + i * (glyphW + gap) * block;
+      for (var r = 0; r < glyphH; r++) {
+        var rowStr = g[r];
+        for (var col = 0; col < glyphW; col++) {
+          if (rowStr[col] === "1") {
+            // outline
+            px(ctx, gx + col * block - 1, startY + r * block - 1, block + 2, block + 2, "#0d0820");
+          }
+        }
+      }
+    }
+    for (var i2 = 0; i2 < text.length; i2++) {
+      var g2 = FONT[text[i2]] || FONT[" "];
+      var gx2 = startX + i2 * (glyphW + gap) * block;
+      for (var r2 = 0; r2 < glyphH; r2++) {
+        var rowStr2 = g2[r2];
+        for (var col2 = 0; col2 < glyphW; col2++) {
+          if (rowStr2[col2] === "1") {
+            px(ctx, gx2 + col2 * block, startY + r2 * block, block, block, color);
+          }
+        }
+      }
+    }
+    ctx.restore();
+  }
+
+  function drawBgSprite(sp) {
+    var s = sp.scale;
+    var x = Math.round(sp.x), y = Math.round(sp.y);
+    ctx.save();
+    ctx.globalAlpha = 0.10;
+    if (sp.type === "coin") {
+      px(ctx, x, y, 6 * s, 6 * s, COIN_OUT);
+      px(ctx, x + s, y + s, 4 * s, 4 * s, GOLD);
+      px(ctx, x + s, y + s, s, s, GOLD_HI);
+    } else if (sp.type === "star") {
+      px(ctx, x + 2 * s, y, s, 5 * s, CYAN);
+      px(ctx, x, y + 2 * s, 5 * s, s, CYAN);
+    } else { // cross
+      px(ctx, x, y, s, s, PINK);
+      px(ctx, x + 3 * s, y, s, s, PINK);
+      px(ctx, x + 1.5 * s, y + 1.5 * s, s, s, WHITE);
+      px(ctx, x, y + 3 * s, s, s, PINK);
+      px(ctx, x + 3 * s, y + 3 * s, s, s, PINK);
+    }
+    ctx.restore();
+  }
+
+  // ---- Grid floor (drawn live for scroll, but cheap) ----
+  function drawGrid() {
+    var off = gridScroll % CELL;
+    ctx.save();
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = "rgba(124,249,255,0.06)";
+    ctx.beginPath();
+    for (var x = -off; x <= W; x += CELL) {
+      var xx = Math.round(x) + 0.5;
+      ctx.moveTo(xx, 0); ctx.lineTo(xx, H);
+    }
+    for (var y = -off; y <= H; y += CELL) {
+      var yy = Math.round(y) + 0.5;
+      ctx.moveTo(0, yy); ctx.lineTo(W, yy);
+    }
+    ctx.stroke();
+
+    // node dots
+    ctx.fillStyle = "rgba(255,79,154,0.10)";
+    for (var gx = -off; gx <= W; gx += CELL) {
+      for (var gy = -off; gy <= H; gy += CELL) {
+        ctx.fillRect(Math.round(gx), Math.round(gy), 2, 2);
+      }
+    }
+    ctx.restore();
+  }
+
+  function drawMatchLine() {
+    ctx.save();
+    // faint vertical center "match line"
+    ctx.fillStyle = "rgba(125,249,255,0.07)";
+    ctx.fillRect(centerX - 1, 0, 2, H);
+    // dashed pixel accents
+    ctx.fillStyle = "rgba(125,249,255,0.16)";
+    for (var y = 0; y < H; y += 14) {
+      ctx.fillRect(centerX - 1, y, 2, 6);
+    }
+    ctx.restore();
+  }
+
+  // ---- Update ----
+  function update(dt) {
+    gridScroll += dt * 10;
+
+    // bg sprites
+    for (var i = 0; i < bgSprites.length; i++) {
+      var sp = bgSprites[i];
+      sp.x += sp.vx * dt;
+      sp.y += Math.sin((performance.now() / 1000) + sp.phase) * 0.15;
+      if (sp.x < -40) {
+        sp.x = W + rand(20, 120);
+        sp.y = rand(70, H - 40);
+      }
+    }
+
+    // spawn ordinary (non-matching) chips
+    spawnTimer -= dt;
+    if (spawnTimer <= 0) {
+      spawnTimer = rand(0.35, 0.7);
+      // alternate-ish sides, mostly singles that pass through
+      chips.push(makeChip(Math.random() < 0.5 ? "buy" : "sell"));
+    }
+
+    // schedule hero matches
+    matchTimer -= dt;
+    if (matchTimer <= 0) {
+      matchTimer = rand(1.5, 2.5);
+      spawnMatchPair();
+    }
+
+    // update chips
+    for (var c = chips.length - 1; c >= 0; c--) {
+      var ch = chips[c];
+
+      if (ch.matched && !ch.crossed) {
+        // approach: drift toward shared targetY and accelerate near center
+        var dxToCenter = Math.abs(ch.x - centerX);
+        if (dxToCenter < W * 0.22) {
+          // lock-on: thread appears, accelerate, converge y
+          ch.thread = Math.min(1, ch.thread + dt * 3);
+          ch.vx *= (1 + dt * 1.6);
+          ch.y += (ch.targetY - ch.y) * Math.min(1, dt * 4);
+        }
+        ch.x += ch.vx * dt;
+
+        // detect cross at center
+        var crossedNow =
+          (ch.side === "buy" && ch.x >= centerX - 18) ||
+          (ch.side === "sell" && ch.x <= centerX + 18);
+        if (crossedNow && !ch.crossed) {
+          ch.crossed = true;
+          if (ch.partner) ch.partner.crossed = true;
+          // spawn ONE burst (only from the buy side to avoid double)
+          if (ch.side === "buy") {
+            spawnBurst(centerX, ch.targetY);
+          }
+          // mark both gone after burst start
+          ch.gone = true;
+          if (ch.partner) ch.partner.gone = true;
+        }
+      } else if (!ch.matched) {
+        // ordinary chip: pass through, fade as it nears far side
+        ch.x += ch.vx * dt;
+        // fade based on distance past center
+        if (ch.side === "buy" && ch.x > centerX) {
+          var prog = (ch.x - centerX) / (W - centerX + 50);
+          ch.alpha = Math.max(0, 1 - prog * 1.15);
+        } else if (ch.side === "sell" && ch.x < centerX) {
+          var prog2 = (centerX - ch.x) / (centerX + 50);
+          ch.alpha = Math.max(0, 1 - prog2 * 1.15);
+        }
+      }
+
+      // cull
+      if (ch.gone) { chips.splice(c, 1); continue; }
+      if (ch.x < -80 || ch.x > W + 80 || ch.alpha <= 0.01) {
+        chips.splice(c, 1);
+      }
+    }
+
+    // bursts
+    for (var b = bursts.length - 1; b >= 0; b--) {
+      bursts[b].t += dt;
+      if (bursts[b].t > bursts[b].dur) bursts.splice(b, 1);
+    }
+    // match texts
+    for (var m = matchTexts.length - 1; m >= 0; m--) {
+      matchTexts[m].t += dt;
+      if (matchTexts[m].t > matchTexts[m].dur) matchTexts.splice(m, 1);
+    }
+  }
+
+  function spawnBurst(x, y) {
+    bursts.push({
+      x: x, y: y,
+      t: 0, dur: 0.55,
+      maxLen: Math.min(120, W * 0.12),
+      block: 4
+    });
+    matchTexts.push({
+      x: x, y: y - 46,
+      t: 0, dur: 0.9
+    });
+  }
+
+  // ---- Render ----
+  function render() {
+    // sky
+    ctx.drawImage(skyCanvas, 0, 0, PW, PH, 0, 0, W, H);
+
+    drawGrid();
+    drawMatchLine();
+
+    // dim bg sprites (depth)
+    for (var i = 0; i < bgSprites.length; i++) drawBgSprite(bgSprites[i]);
+
+    // connecting threads for matched pairs (draw under chips)
+    for (var c = 0; c < chips.length; c++) {
+      var ch = chips[c];
+      if (ch.matched && ch.side === "buy" && ch.partner && ch.thread > 0 && !ch.gone) {
+        var p = ch.partner;
+        ctx.save();
+        ctx.globalAlpha = 0.5 * ch.thread;
+        ctx.strokeStyle = CYAN;
+        ctx.lineWidth = 2;
+        ctx.setLineDash([4, 3]);
+        ctx.beginPath();
+        ctx.moveTo(ch.x + 18, ch.y + 12);
+        ctx.lineTo(p.x + 18, p.y + 12);
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+
+    // chips
+    for (var k = 0; k < chips.length; k++) {
+      if (!chips[k].gone) drawChip(chips[k]);
+    }
+
+    // bursts
+    for (var b = 0; b < bursts.length; b++) drawBurst(bursts[b]);
+
+    // matched text flashes
+    for (var m = 0; m < matchTexts.length; m++) {
+      var mt = matchTexts[m];
+      var tt = mt.t / mt.dur;
+      var a = tt < 0.15 ? (tt / 0.15) : (1 - (tt - 0.15) / 0.85);
+      a = Math.max(0, Math.min(1, a));
+      var yoff = -tt * 10;
+      drawPixelText("MATCHED", mt.x, mt.y + yoff, 3, CYAN, a);
+    }
+
+    // scanlines on top
+    ctx.drawImage(scanCanvas, 0, 0, PW, PH, 0, 0, W, H);
+  }
+
+  // ---- Loop ----
+  var last = 0;
+  var running = true;
+  var rafId = 0;
+
+  function frame(now) {
+    if (!running) return;
+    if (!last) last = now;
+    var dt = (now - last) / 1000;
+    last = now;
+    if (dt > 0.05) dt = 0.05;
+
+    update(dt);
+    render();
+    rafId = requestAnimationFrame(frame);
+  }
+
+  function startLoop() {
+    if (reduceMotion) return;
+    running = true;
+    last = 0;
+    rafId = requestAnimationFrame(frame);
+  }
+  function stopLoop() {
+    running = false;
+    if (rafId) cancelAnimationFrame(rafId);
+  }
+
+  // ---- Resize ----
+  function resize() {
+    DPR = Math.min(window.devicePixelRatio || 1, 1.5);
+    W = window.innerWidth;
+    H = window.innerHeight;
+    PW = Math.max(1, Math.round(W * DPR));
+    PH = Math.max(1, Math.round(H * DPR));
+    canvas.width = PW;
+    canvas.height = PH;
+    canvas.style.width = W + "px";
+    canvas.style.height = H + "px";
+
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    ctx.imageSmoothingEnabled = false;
+
+    buildSky();
+    buildScan();
+    initEntities();
+
+    if (reduceMotion) {
+      // render one crisp static frame with a representative arrangement
+      staticFrame();
+    }
+  }
+
+  function staticFrame() {
+    // place a tidy static composition: a few chips + one mid-cross moment
+    chips.length = 0;
+    bursts.length = 0;
+    matchTexts.length = 0;
+    centerX = Math.round(W / 2);
+
+    // ordinary chips drifting
+    var bc = makeChip("buy"); bc.x = W * 0.20; bc.y = H * 0.36; chips.push(bc);
+    var sc = makeChip("sell"); sc.x = W * 0.78; sc.y = H * 0.64; chips.push(sc);
+    var bc2 = makeChip("buy"); bc2.x = W * 0.62; bc2.y = H * 0.42; bc2.alpha = 0.5; chips.push(bc2);
+
+    // a frozen hero match near center
+    var hb = makeChip("buy");
+    hb.matched = true; hb.x = centerX - 60; hb.y = H * 0.5; hb.thread = 1;
+    var hs = makeChip("sell");
+    hs.matched = true; hs.x = centerX + 40; hs.y = H * 0.5; hs.thread = 1;
+    hb.partner = hs; hs.partner = hb;
+    chips.push(hb, hs);
+
+    bursts.push({ x: centerX, y: H * 0.5, t: 0.28, dur: 0.55, maxLen: Math.min(120, W * 0.12), block: 4 });
+    matchTexts.push({ x: centerX, y: H * 0.5 - 46, t: 0.25, dur: 0.9 });
+
+    render();
+  }
+
+  // ---- Visibility ----
+  document.addEventListener("visibilitychange", function () {
+    if (document.hidden) {
+      stopLoop();
+    } else if (!reduceMotion) {
+      startLoop();
+    }
+  });
+
+  window.addEventListener("resize", function () {
+    resize();
+  });
+
+  // ---- Boot ----
+  resize();
+  startLoop();
+})();
+</script>
+</body>
+</html>

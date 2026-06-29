@@ -165,6 +165,10 @@ class Directory {
     return this.#entries.map((entry) => entry.leaf);
   }
 
+  entries() {
+    return this.#entries.map((entry, index) => ({ index, ...entry }));
+  }
+
   async rootHex() {
     return fieldToHex(await computeRoot(this.leaves()));
   }

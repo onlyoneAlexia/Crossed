@@ -12,7 +12,7 @@ const {
 const COORD = process.env.COORDINATOR_URL ?? "http://127.0.0.1:8790";
 const RPC = "https://soroban-testnet.stellar.org";
 const PASS = "Test SDF Network ; September 2015";
-const DP = "CBGWGEP5YOOX6I734RGVGINASZR5PCGYLUV4AYEBX2M6GEFI7A3NEE24";
+const DP = process.env.DP_CONTRACT_ID ?? "CBGWGEP5YOOX6I734RGVGINASZR5PCGYLUV4AYEBX2M6GEFI7A3NEE24";
 // Pair + tokens are env-driven so any configured pair can be tested. Defaults = pair 1 (USDC/XLM).
 //   DP_PAIR_ID=2 BASE_SYM=EURC QUOTE_SYM=USDC node dp_e2e.js
 const TOKENS = {

@@ -94,10 +94,10 @@ export default function Footer({ onLaunch }: { onLaunch?: () => void }) {
           </a>
           <span className="ft-partners-sep" />
           <span className="ft-partners-label">Built with</span>
-          <img className="ft-logo" src="/logos/rust.svg" alt="Rust" title="Rust (Soroban)" />
-          <img className="ft-logo" src="/logos/react.svg" alt="React" title="React" />
-          <img className="ft-logo" src="/logos/typescript.svg" alt="TypeScript" title="TypeScript" />
-          <img className="ft-logo" src="/logos/vite.svg" alt="Vite" title="Vite" />
+          <span className="ft-tech" title="Rust (Soroban)">Rust</span>
+          <span className="ft-tech" title="React">React</span>
+          <span className="ft-tech" title="TypeScript">TypeScript</span>
+          <span className="ft-tech" title="Vite">Vite</span>
           <span className="ft-partners-zk">Circom · Groth16 · BN254</span>
         </div>
 

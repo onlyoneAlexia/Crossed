@@ -4,10 +4,11 @@ import * as chain from "./lib/chain";
 import { CONFIG } from "./lib/config";
 import { TokenIcon } from "./components/TokenIcon";
 import { ThemeToggle } from "./components/ThemeToggle";
-import { connectWallet, disconnectWallet, restoreWallet } from "./lib/wallet";
+import { connectWallet, currentWalletAddress, disconnectWallet, restoreWallet, subscribeWalletChanges } from "./lib/wallet";
+import { formatDecimalAmount } from "./lib/amounts";
 
-const nowt = () => new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-const num = (s: string) => Number(s || "0").toLocaleString(undefined, { maximumFractionDigits: 2 });
+const nowt = () => new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+const num = (s: string) => formatDecimalAmount(s);
 const short = (h?: string) => (h ? `${h.slice(0, 6)}…${h.slice(-4)}` : "");
 const FAUCET_AMOUNT = "1000000000"; // 100 units (7 decimals)
 
@@ -15,33 +16,67 @@ export default function Faucet({ onHome, onApp }: { onHome: () => void; onApp: (
   const [addr, setAddr] = useState("");
   const [bal, setBal] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
   const [status, setStatus] = useState<{ t: string; m: string } | null>(null);
   const say = (m: string) => setStatus({ t: nowt(), m });
 
   useEffect(() => { (async () => {
     try {
       const restored = await restoreWallet();
-      if (restored) { setAddr(restored); await refresh(); }
+      if (restored) await activateWallet(restored);
     } catch { /* not connected yet */ }
   })(); }, []);
 
-  async function refresh() {
-    try { setBal(await chain.balances()); } catch { /* trustlines not set yet */ }
+  useEffect(() => subscribeWalletChanges((state) => {
+    const next = state.address;
+    if (!next) {
+      clearWalletView(addr ? "Wallet disconnected" : undefined);
+      return;
+    }
+    if (next === addr) {
+      void refresh(next);
+      return;
+    }
+    void activateWallet(next, true);
+  }), [addr]);
+
+  async function refresh(owner = addr) {
+    if (!owner || currentWalletAddress() !== owner) return;
+    try {
+      const nextBal = await chain.balances();
+      if (currentWalletAddress() === owner) setBal(nextBal);
+    } catch { /* trustlines not set yet */ }
+  }
+
+  function clearWalletView(message?: string) {
+    setAddr("");
+    setBal({});
+    if (message) say(message);
+  }
+
+  async function activateWallet(wallet: string, switched = false) {
+    setAddr(wallet);
+    setBal({});
+    if (switched) say(`Switched to ${short(wallet)}`);
+    try {
+      await chain.ensureAccount();
+      await refresh(wallet);
+    } catch (e: any) {
+      if (switched) say("Wallet switched, but balances did not refresh: " + (e?.message || e));
+    }
   }
 
   async function connect() {
     setBusy("connect");
     try {
       const w = await connectWallet();
-      setAddr(w);
+      await activateWallet(w);
       say(`Connected ${short(w)}`);
-      await chain.ensureAccount();
-      await refresh();
     } catch (e: any) { say("Connect failed: " + (e?.message || e)); }
     setBusy(null);
   }
 
-  function disconnect() { disconnectWallet(); setAddr(""); setBal({}); say("Disconnected"); }
+  function disconnect() { disconnectWallet(); clearWalletView("Disconnected"); }
 
   async function request(sym: string) {
     if (!addr) { say("Connect a wallet first"); return; }
@@ -92,7 +127,7 @@ export default function Faucet({ onHome, onApp }: { onHome: () => void; onApp: (
       </div>
 
       {status && (
-        <div className="statusbar"><span className="t">{status.t}</span><span>{status.m}</span></div>
+        <div className="statusbar" role="status" aria-live="polite" key={status.t + status.m}><span className="t">{status.t}</span><span>{status.m}</span></div>
       )}
 
       <div className="dp-grid">
@@ -113,7 +148,9 @@ export default function Faucet({ onHome, onApp }: { onHome: () => void; onApp: (
           <div className="card">
             <div className="row" style={{ marginBottom: 10 }}>
               <h2 style={{ margin: 0 }}>Tokens</h2>
-              {addr && <button className="btn ghost sm" disabled={!!busy} onClick={() => void refresh()} title="Refresh">↻</button>}
+              {addr && <button className="btn ghost sm" disabled={!!busy || refreshing} title="Refresh"
+                onClick={async () => { setRefreshing(true); try { await refresh(); } finally { setRefreshing(false); } }}>
+                <span className={refreshing ? "px-spin" : undefined} style={{ display: "inline-block" }}>↻</span></button>}
             </div>
             <div className="pool-list">
               {CONFIG.TOKENS.map((t) => (

@@ -12,7 +12,6 @@
  * (.desks li / .deskname / .desk-meta / .chip / .pill / .mono / .tx-link) and
  * var(--…) tokens, so it inherits theming with zero new CSS.
  */
-import React from "react";
 
 /** A single partial fill, as handed in by the caller (amounts are display strings). */
 export interface PartialFill {

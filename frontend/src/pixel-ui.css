@@ -65,6 +65,7 @@
 .px-stat__v {
   font-family: var(--font-display); font-size: clamp(16px, 3vw, 26px);
   color: var(--coin); text-shadow: 3px 3px 0 var(--ink); line-height: 1.4;
+  font-variant-numeric: tabular-nums; font-feature-settings: 'tnum' 1;
 }
 .px-stat__k {
   font-family: var(--font-label); font-size: 11px; color: var(--muted);
@@ -95,7 +96,37 @@
 /* --------------------------------------------------------------- dividers */
 .px-rule { height: 0; border: 0; border-top: 2px dashed var(--border); margin: 18px 0; }
 
+/* ----------------------------------------------- shared 8-bit motion layer
+   Keyframes reused across components (dropdowns, modals, status bar, spinners,
+   skeletons) so motion vocabulary stays consistent. Stepped easings keep it crunchy. */
+@keyframes px-pop-in    { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+@keyframes px-fade-in   { from { opacity: 0; } to { opacity: 1; } }
+@keyframes px-modal-in  { from { opacity: 0; transform: translateY(8px) scale(.985); } to { opacity: 1; transform: none; } }
+@keyframes px-status-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+@keyframes px-spin      { to { transform: rotate(360deg); } }
+@keyframes px-blink     { 0%, 100% { opacity: 1; } 50% { opacity: .18; } }
+@keyframes px-skel      { 0%, 100% { opacity: .30; } 50% { opacity: .55; } }
+@keyframes px-ok-flash  { 0%, 100% { box-shadow: var(--shadow); } 38% { box-shadow: 0 0 0 3px var(--good), var(--shadow); } }
+@keyframes px-coin-up   { 0% { opacity: 0; transform: translateY(0) scale(1); }
+                          20% { opacity: 1; }
+                          100% { opacity: 0; transform: translateY(-26px) scale(.7); } }
+
+.px-pop      { animation: px-pop-in .12s steps(3, end) both; transform-origin: top right; }
+.px-spin     { animation: px-spin .6s steps(8, end) infinite; }
+.px-modal-in { animation: px-modal-in .16s cubic-bezier(.22,.61,.36,1) both; }
+.px-backdrop-in { animation: px-fade-in .14s ease both; }
+.px-status-in { animation: px-status-in .16s cubic-bezier(.22,.61,.36,1) both; }
+.px-dots { display: inline-flex; gap: 4px; vertical-align: middle; }
+.px-dots i { width: 6px; height: 6px; background: var(--coin); image-rendering: pixelated;
+  animation: px-blink .9s steps(1, end) infinite; }
+.px-dots i:nth-child(2) { animation-delay: .15s; }
+.px-dots i:nth-child(3) { animation-delay: .30s; }
+.px-skel { background: var(--surface-2); border: 2px dashed var(--border);
+  border-radius: var(--radius); animation: px-skel 1.4s steps(4, end) infinite; }
+
 @media (prefers-reduced-motion: reduce) {
   .px-btn { transition: background .12s, border-color .12s; }
   .px-btn:active { transform: none; }
+  .px-pop, .px-spin, .px-modal-in, .px-backdrop-in, .px-status-in,
+  .px-dots i, .px-skel { animation: none !important; }
 }

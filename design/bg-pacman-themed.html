@@ -1,0 +1,1026 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Crossed — Themed Pac-Man</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    width: 100%; height: 100%; overflow: hidden;
+    background: #1a1033;
+  }
+  #scene {
+    position: fixed; inset: 0;
+    width: 100vw; height: 100vh;
+    display: block;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+  }
+
+  /* ---------- READABILITY OVERLAY (static, real-app sample) ---------- */
+  .ui-layer {
+    position: fixed; inset: 0;
+    pointer-events: none;
+    z-index: 10;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    color: #fff4fb;
+  }
+
+  /* top bar */
+  .topbar {
+    position: absolute; top: 0; left: 0; right: 0;
+    height: 54px;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 18px;
+  }
+  .wordmark {
+    font-weight: 800; letter-spacing: 1px;
+    font-size: 20px;
+    color: #fff4fb;
+    text-shadow: 0 0 2px rgba(255,79,154,0.6);
+    display: flex; align-items: center; gap: 7px;
+  }
+  .wordmark .x {
+    color: #ff4f9a;
+    font-size: 22px;
+  }
+  .pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12px; font-weight: 600;
+    padding: 5px 11px;
+    border: 1px solid rgba(125,249,255,0.5);
+    border-radius: 999px;
+    background: rgba(20,12,40,0.55);
+    color: #cfeaff;
+  }
+  .pill .dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: #7df9ff;
+    box-shadow: 0 0 5px #7df9ff;
+  }
+
+  /* trade card */
+  .card {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 360px; max-width: calc(100vw - 40px);
+    background: rgba(20,12,40,0.72);
+    border: 2px solid #ff4f9a;
+    border-radius: 14px;
+    padding: 20px 20px 22px;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.45);
+  }
+  .card h2 {
+    font-size: 17px; font-weight: 700;
+    margin-bottom: 16px;
+    color: #fff4fb;
+  }
+  .field { margin-bottom: 13px; }
+  .field-label {
+    font-size: 11px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.6px;
+    color: #b9a8d8;
+    margin-bottom: 5px;
+  }
+  .field-box {
+    display: flex; align-items: center; justify-content: space-between;
+    border: 1px solid rgba(125,249,255,0.35);
+    background: rgba(10,6,24,0.55);
+    border-radius: 9px;
+    padding: 11px 13px;
+  }
+  .field-box .ph {
+    font-size: 13px; color: #8d7fb0;
+    font-family: system-ui, sans-serif;
+  }
+  .field-box .amt {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 15px; font-weight: 600;
+    color: #fff4fb;
+  }
+  .cta {
+    margin-top: 6px;
+    width: 100%;
+    border: none;
+    border-radius: 10px;
+    padding: 13px 0;
+    background: #ff4f9a;
+    color: #1a0a18;
+    font-weight: 800; font-size: 15px;
+    letter-spacing: 0.4px;
+    font-family: system-ui, sans-serif;
+    text-align: center;
+    box-shadow: 0 0 14px rgba(255,79,154,0.45);
+  }
+
+  /* concept chip (bottom-left) */
+  .concept-chip {
+    position: fixed;
+    bottom: 14px; left: 14px;
+    z-index: 11;
+    font-family: ui-monospace, monospace;
+    font-size: 11px; font-weight: 700;
+    letter-spacing: 0.5px;
+    color: #ffcf3f;
+    background: rgba(20,12,40,0.8);
+    border: 1px solid rgba(255,207,63,0.5);
+    border-radius: 6px;
+    padding: 6px 10px;
+  }
+
+  /* legend chip (bottom-center) */
+  .legend-chip {
+    position: fixed;
+    bottom: 14px; left: 50%;
+    transform: translateX(-50%);
+    z-index: 11;
+    max-width: calc(100vw - 40px);
+    text-align: center;
+    font-family: ui-monospace, monospace;
+    font-size: 11px;
+    color: #cfeaff;
+    background: rgba(20,12,40,0.8);
+    border: 1px solid rgba(125,249,255,0.35);
+    border-radius: 6px;
+    padding: 6px 12px;
+    line-height: 1.5;
+  }
+  .legend-chip b.you { color: #ffcf3f; }
+  .legend-chip b.ghost { color: #ff4f9a; }
+  .legend-chip b.maze { color: #7df9ff; }
+
+  @media (max-width: 640px) {
+    .legend-chip { font-size: 10px; }
+    .concept-chip { font-size: 10px; }
+  }
+</style>
+</head>
+<body>
+  <canvas id="scene"></canvas>
+
+  <!-- STATIC readability overlay -->
+  <div class="ui-layer" aria-hidden="true">
+    <div class="topbar">
+      <div class="wordmark">Cross<span class="x">✕</span>ed</div>
+      <div class="pill"><span class="dot"></span>Testnet</div>
+    </div>
+
+    <div class="card">
+      <h2>Make a private offer</h2>
+      <div class="field">
+        <div class="field-label">You give</div>
+        <div class="field-box">
+          <span class="ph">USDC</span>
+          <span class="amt">1,250.00</span>
+        </div>
+      </div>
+      <div class="field">
+        <div class="field-label">You want</div>
+        <div class="field-box">
+          <span class="ph">XLM</span>
+          <span class="amt">10,000.00</span>
+        </div>
+      </div>
+      <div class="cta">Launch app</div>
+    </div>
+  </div>
+
+  <div class="concept-chip">CONCEPT: Themed Pac-Man</div>
+  <div class="legend-chip">
+    <b class="you">you = your order</b> · <b class="ghost">ghosts = front-runners (MEV)</b> · <b class="maze">maze = the dark pool you hide in</b>
+  </div>
+
+<script>
+(function () {
+  "use strict";
+
+  var canvas = document.getElementById("scene");
+  var ctx = canvas.getContext("2d", { alpha: false });
+
+  var REDUCED = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  // ---- palette ----
+  var SKY = ["#1a1033", "#241447", "#2d1a55", "#371f63", "#3c2168"];
+  var COIN_OUTLINE = "#7a3b00";
+  var COIN_GOLD = "#ffcf3f";
+  var COIN_HI = "#fff7c2";
+  var STAR_CYAN = "#7df9ff";
+  var PINK = "#ff4f9a";
+  var HI = "#fff4fb";
+  var WALL = "#3a2a78";
+  var WALL_OUT = "#7df9ff";
+  var PELLET = "#7df9ff";
+  var FRIGHT = "#3344cc";
+  var FRIGHT2 = "#cfeaff";
+
+  var GHOST_COLORS = ["#ff4f9a", "#ff7a3c", "#7df9ff", "#b06bff"];
+
+  // ---- viewport ----
+  var DPR = 1, W = 0, H = 0;
+
+  function resize() {
+    DPR = Math.min(window.devicePixelRatio || 1, 1.5);
+    W = window.innerWidth;
+    H = window.innerHeight;
+    canvas.width = Math.floor(W * DPR);
+    canvas.height = Math.floor(H * DPR);
+    canvas.style.width = W + "px";
+    canvas.style.height = H + "px";
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    ctx.imageSmoothingEnabled = false;
+    computeMaze();
+    if (REDUCED) drawStatic();
+  }
+
+  // ---------- MAZE DEFINITION ----------
+  // Tile codes:  '#' wall, '.' pellet, 'o' power pellet, ' ' empty path, '-' empty (no pellet, walkable)
+  // Symmetric-ish hand-built maze.
+  var MAZE = [
+    "############################",
+    "#............##............#",
+    "#.####.#####.##.#####.####.#",
+    "#o####.#####.##.#####.####o#",
+    "#.####.#####.##.#####.####.#",
+    "#..........................#",
+    "#.####.##.########.##.####.#",
+    "#.####.##.########.##.####.#",
+    "#......##....##....##......#",
+    "######.##### ## #####.######",
+    "     #.##### ## #####.#     ",
+    "     #.##          ##.#     ",
+    "     #.## ###--### ##.#     ",
+    "######.## #------# ##.######",
+    "------.   #------#   .------",
+    "######.## #------# ##.######",
+    "     #.## ######## ##.#     ",
+    "     #.##          ##.#     ",
+    "     #.## ######## ##.#     ",
+    "######.## ######## ##.######",
+    "#............##............#",
+    "#.####.#####.##.#####.####.#",
+    "#o..##.......  .......##..o#",
+    "###.##.##.########.##.##.###",
+    "#......##....##....##......#",
+    "#.##########.##.##########.#",
+    "#..........................#",
+    "############################"
+  ];
+
+  var ROWS = MAZE.length;
+  var COLS = MAZE[0].length;
+
+  // grid runtime: pellet state
+  var pellets;        // 2D: 0 none, 1 pellet, 2 power
+  var pelletCount = 0;
+
+  function resetPellets() {
+    pellets = [];
+    pelletCount = 0;
+    for (var r = 0; r < ROWS; r++) {
+      pellets[r] = [];
+      for (var c = 0; c < COLS; c++) {
+        var ch = MAZE[r][c];
+        if (ch === ".") { pellets[r][c] = 1; pelletCount++; }
+        else if (ch === "o") { pellets[r][c] = 2; pelletCount++; }
+        else pellets[r][c] = 0;
+      }
+    }
+  }
+
+  function isWall(r, c) {
+    if (r < 0 || r >= ROWS) return true;
+    // horizontal wrap tunnel
+    if (c < 0 || c >= COLS) return false;
+    return MAZE[r][c] === "#";
+  }
+
+  // ---------- layout / scaling ----------
+  var TILE = 16;     // px per tile (recomputed)
+  var OX = 0, OY = 0; // maze origin in screen px
+  var mazePxW = 0, mazePxH = 0;
+
+  function computeMaze() {
+    // Fit maze into a generous centered area, leaving margins for UI.
+    var availW = W * 0.96;
+    var availH = H * 0.92;
+    var t = Math.floor(Math.min(availW / COLS, availH / ROWS));
+    if (t < 6) t = 6;
+    TILE = t;
+    mazePxW = TILE * COLS;
+    mazePxH = TILE * ROWS;
+    OX = Math.floor((W - mazePxW) / 2);
+    OY = Math.floor((H - mazePxH) / 2);
+  }
+
+  // ---------- entities ----------
+  // Movement on grid with smooth interpolation between tile centers.
+  // Direction vectors
+  var DIRS = [
+    { x: 1, y: 0 },   // 0 right
+    { x: -1, y: 0 },  // 1 left
+    { x: 0, y: -1 },  // 2 up
+    { x: 0, y: 1 }    // 3 down
+  ];
+
+  function tileCenterX(c) { return OX + c * TILE + TILE / 2; }
+  function tileCenterY(r) { return OY + r * TILE + TILE / 2; }
+
+  var pac, ghosts;
+  var frightTimer = 0;        // seconds remaining of fright mode
+  var chompPhase = 0;
+  var resetFlash = 0;
+
+  function findStartTile(prefRow, prefCol) {
+    if (!isWall(prefRow, prefCol)) return { r: prefRow, c: prefCol };
+    for (var r = 0; r < ROWS; r++)
+      for (var c = 0; c < COLS; c++)
+        if (!isWall(r, c)) return { r: r, c: c };
+    return { r: 1, c: 1 };
+  }
+
+  function initEntities() {
+    resetPellets();
+    var ps = findStartTile(23, 13);
+    pac = {
+      r: ps.r, c: ps.c,
+      tr: ps.r, tc: ps.c,    // target tile
+      px: tileCenterX(ps.c), py: tileCenterY(ps.r),
+      dir: 1,                // facing
+      pendDir: 1,
+      speed: 5.4             // tiles per second
+    };
+
+    ghosts = [];
+    var ghostStarts = [
+      { r: 13, c: 13 }, { r: 13, c: 14 },
+      { r: 14, c: 13 }, { r: 14, c: 14 }
+    ];
+    for (var i = 0; i < 4; i++) {
+      var gs = findStartTile(ghostStarts[i].r, ghostStarts[i].c);
+      ghosts.push({
+        r: gs.r, c: gs.c, tr: gs.r, tc: gs.c,
+        px: tileCenterX(gs.c), py: tileCenterY(gs.r),
+        dir: 2, color: GHOST_COLORS[i],
+        speed: 4.6 + i * 0.12,
+        scatter: 0,
+        scatterCorner: i,
+        fright: false
+      });
+    }
+    frightTimer = 0;
+  }
+
+  // ----- helpers for grid navigation -----
+  function wrapCol(c) {
+    if (c < 0) return COLS - 1;
+    if (c >= COLS) return 0;
+    return c;
+  }
+
+  function canMove(r, c, dir) {
+    var nr = r + DIRS[dir].y;
+    var nc = c + DIRS[dir].x;
+    if (dir === 0 || dir === 1) nc = wrapCol(nc);
+    return !isWall(nr, nc);
+  }
+
+  function opposite(dir) {
+    return dir === 0 ? 1 : dir === 1 ? 0 : dir === 2 ? 3 : 2;
+  }
+
+  // available directions at a tile (excludes walls)
+  function validDirs(r, c, excludeOpp, fromDir) {
+    var out = [];
+    for (var d = 0; d < 4; d++) {
+      if (excludeOpp && d === opposite(fromDir)) continue;
+      if (canMove(r, c, d)) out.push(d);
+    }
+    return out;
+  }
+
+  // ----- Pac-Man AI: greedy toward nearest pellet, flee ghosts -----
+  function nearestPelletDir(r, c) {
+    // BFS from pac tile to nearest pellet; return first-step direction
+    var q = [];
+    var visited = {};
+    var startKey = r + "," + c;
+    visited[startKey] = null; // store parent dir
+    q.push({ r: r, c: c, first: -1 });
+    var head = 0;
+    var limit = 0;
+    while (head < q.length && limit < 1200) {
+      limit++;
+      var node = q[head++];
+      // pellet here?
+      if (pellets[node.r] && pellets[node.r][node.c] > 0 && !(node.r === r && node.c === c)) {
+        return node.first;
+      }
+      for (var d = 0; d < 4; d++) {
+        if (!canMove(node.r, node.c, d)) continue;
+        var nr = node.r + DIRS[d].y;
+        var nc = wrapCol(node.c + DIRS[d].x);
+        var k = nr + "," + nc;
+        if (visited.hasOwnProperty(k)) continue;
+        visited[k] = true;
+        q.push({ r: nr, c: nc, first: node.first === -1 ? d : node.first });
+      }
+    }
+    return -1;
+  }
+
+  function ghostDanger(r, c) {
+    // returns {threat: bool, dangerDir: dir to nearest close ghost}
+    var minD = 999, gx = 0, gy = 0, threat = false;
+    for (var i = 0; i < ghosts.length; i++) {
+      var g = ghosts[i];
+      if (g.fright) continue;
+      var dr = g.r - r, dc = g.c - c;
+      var dist = Math.abs(dr) + Math.abs(dc);
+      if (dist < minD) { minD = dist; gx = dc; gy = dr; }
+    }
+    if (minD <= 5) threat = true;
+    return { threat: threat, dist: minD, dx: gx, dy: gy };
+  }
+
+  function choosePacDir() {
+    var r = pac.r, c = pac.c;
+    var options = validDirs(r, c, false, pac.dir);
+    if (options.length === 0) return pac.dir;
+
+    var danger = ghostDanger(r, c);
+
+    if (danger.threat) {
+      // flee: pick direction that maximizes manhattan distance from nearest ghost,
+      // avoid reversing unless it's the only escape.
+      var best = -1, bestScore = -1e9;
+      for (var i = 0; i < options.length; i++) {
+        var d = options[i];
+        var nr = r + DIRS[d].y;
+        var nc = wrapCol(c + DIRS[d].x);
+        // distance to nearest non-fright ghost from the NEW tile
+        var md = 999;
+        for (var j = 0; j < ghosts.length; j++) {
+          var g = ghosts[j];
+          if (g.fright) continue;
+          var dd = Math.abs(g.r - nr) + Math.abs(g.c - nc);
+          if (dd < md) md = dd;
+        }
+        var score = md;
+        if (d === opposite(pac.dir)) score -= 1.5; // slight penalty for reversing
+        // small pellet bonus
+        if (pellets[nr] && pellets[nr][nc] > 0) score += 0.6;
+        if (score > bestScore) { bestScore = score; best = d; }
+      }
+      return best >= 0 ? best : options[0];
+    }
+
+    // chase frightened ghosts if very close (eat them)
+    if (frightTimer > 0) {
+      var cg = -1, cgd = 999, cgdir = -1;
+      for (var k = 0; k < ghosts.length; k++) {
+        var gg = ghosts[k];
+        if (!gg.fright) continue;
+        var dist = Math.abs(gg.r - r) + Math.abs(gg.c - c);
+        if (dist < cgd) { cgd = dist; cg = k; }
+      }
+      if (cg >= 0 && cgd <= 6) {
+        // step toward that ghost
+        var tg = ghosts[cg];
+        var bestc = -1, bsc = -1e9;
+        for (var m = 0; m < options.length; m++) {
+          var dm = options[m];
+          var nrr = r + DIRS[dm].y, ncc = wrapCol(c + DIRS[dm].x);
+          var sc = -(Math.abs(tg.r - nrr) + Math.abs(tg.c - ncc));
+          if (dm === opposite(pac.dir)) sc -= 1.0;
+          if (sc > bsc) { bsc = sc; bestc = dm; }
+        }
+        if (bestc >= 0) return bestc;
+      }
+    }
+
+    // normal: head to nearest pellet
+    var pd = nearestPelletDir(r, c);
+    if (pd >= 0 && options.indexOf(pd) >= 0) {
+      return pd;
+    }
+    // continue straight if possible
+    if (options.indexOf(pac.dir) >= 0 && Math.random() > 0.15) return pac.dir;
+    // random valid (prefer not reversing)
+    var noRev = options.filter(function (d) { return d !== opposite(pac.dir); });
+    var pool = noRev.length ? noRev : options;
+    return pool[(Math.random() * pool.length) | 0];
+  }
+
+  // ----- ghost AI -----
+  var SCATTER_CORNERS = [
+    { r: 1, c: COLS - 2 },
+    { r: 1, c: 1 },
+    { r: ROWS - 2, c: COLS - 2 },
+    { r: ROWS - 2, c: 1 }
+  ];
+
+  function chooseGhostDir(g) {
+    var opts = validDirs(g.r, g.c, true, g.dir);
+    if (opts.length === 0) {
+      // dead end: allow reverse
+      opts = validDirs(g.r, g.c, false, g.dir);
+      if (opts.length === 0) return g.dir;
+    }
+
+    var targetR, targetC;
+    if (g.fright) {
+      // flee from pac: target the corner opposite to pac
+      targetR = pac.r > ROWS / 2 ? 1 : ROWS - 2;
+      targetC = pac.c > COLS / 2 ? 1 : COLS - 2;
+      // 35% random to look panicked
+      if (Math.random() < 0.35) return opts[(Math.random() * opts.length) | 0];
+    } else if (g.scatter > 0) {
+      var corner = SCATTER_CORNERS[g.scatterCorner % 4];
+      targetR = corner.r; targetC = corner.c;
+    } else {
+      // chase pac (with slight offset per ghost for variety)
+      targetR = pac.r;
+      targetC = pac.c;
+    }
+
+    // pick option minimizing distance to target
+    var best = opts[0], bestD = 1e9;
+    for (var i = 0; i < opts.length; i++) {
+      var d = opts[i];
+      var nr = g.r + DIRS[d].y;
+      var nc = wrapCol(g.c + DIRS[d].x);
+      var dist = (nr - targetR) * (nr - targetR) + (nc - targetC) * (nc - targetC);
+      // add tiny jitter to avoid lockstep
+      dist += Math.random() * 0.4;
+      if (dist < bestD) { bestD = dist; best = d; }
+    }
+    return best;
+  }
+
+  // ----- step entity to next tile center & request decision when aligned -----
+  function advance(ent, dt, isPac) {
+    var spd = ent.speed;
+    if (!isPac && ent.fright) spd *= 0.62;
+    var step = spd * TILE * dt;
+
+    var targetX = tileCenterX(ent.tc);
+    var targetY = tileCenterY(ent.tr);
+    // handle tunnel wrap target X
+    var dx = targetX - ent.px;
+    var dy = targetY - ent.py;
+    var dist = Math.abs(dx) + Math.abs(dy);
+
+    if (dist <= step || dist < 0.5) {
+      // arrived at tile center
+      ent.px = targetX; ent.py = targetY;
+      ent.r = ent.tr; ent.c = ent.tc;
+
+      // eat pellet (pac)
+      if (isPac && pellets[ent.r] && pellets[ent.r][ent.c] > 0) {
+        if (pellets[ent.r][ent.c] === 2) {
+          frightTimer = 6.5;
+          for (var gi = 0; gi < ghosts.length; gi++) ghosts[gi].fright = true;
+        }
+        pellets[ent.r][ent.c] = 0;
+        pelletCount--;
+        if (pelletCount <= 0) {
+          // refill and gentle flash
+          resetEntitiesSoft();
+          return;
+        }
+      }
+
+      // decide next direction
+      var nd;
+      if (isPac) nd = choosePacDir();
+      else nd = chooseGhostDir(g_current(ent));
+      ent.dir = nd;
+      var nr = ent.r + DIRS[nd].y;
+      var nc = ent.c + DIRS[nd].x;
+      if (nd === 0 || nd === 1) nc = wrapCol(nc);
+      // safety: if somehow blocked, stay
+      if (isWall(nr, nc)) {
+        var v = validDirs(ent.r, ent.c, false, ent.dir);
+        if (v.length) {
+          ent.dir = v[(Math.random() * v.length) | 0];
+          nr = ent.r + DIRS[ent.dir].y;
+          nc = wrapCol(ent.c + DIRS[ent.dir].x);
+        } else {
+          return;
+        }
+      }
+      ent.tr = nr; ent.tc = nc;
+
+      // tunnel visual wrap: if wrapping horizontally, jump px to opposite side
+      if ((ent.dir === 0 && ent.c === COLS - 1 && ent.tc === 0)) {
+        ent.px = OX - TILE / 2; // come from left edge
+        ent.py = tileCenterY(ent.r);
+      } else if ((ent.dir === 1 && ent.c === 0 && ent.tc === COLS - 1)) {
+        ent.px = OX + mazePxW + TILE / 2;
+        ent.py = tileCenterY(ent.r);
+      }
+    } else {
+      // move toward target
+      if (Math.abs(dx) > 0.01) ent.px += Math.sign(dx) * Math.min(step, Math.abs(dx));
+      if (Math.abs(dy) > 0.01) ent.py += Math.sign(dy) * Math.min(step, Math.abs(dy));
+    }
+  }
+
+  // helper to retrieve the ghost object for chooseGhostDir (advance passes ent)
+  function g_current(ent) { return ent; }
+
+  function resetEntitiesSoft() {
+    resetPellets();
+    resetFlash = 0.6;
+    // keep positions, just refill pellets; clear fright
+    frightTimer = 0;
+    for (var i = 0; i < ghosts.length; i++) ghosts[i].fright = false;
+  }
+
+  // ----- collisions pac vs ghosts -----
+  function checkCollisions() {
+    for (var i = 0; i < ghosts.length; i++) {
+      var g = ghosts[i];
+      var dpx = g.px - pac.px;
+      var dpy = g.py - pac.py;
+      if (Math.abs(dpx) < TILE * 0.55 && Math.abs(dpy) < TILE * 0.55) {
+        if (g.fright) {
+          // pac eats ghost -> respawn ghost at home
+          var home = findStartTile(13 + (i % 2), 13 + ((i >> 1) % 2));
+          g.r = home.r; g.c = home.c; g.tr = home.r; g.tc = home.c;
+          g.px = tileCenterX(home.c); g.py = tileCenterY(home.r);
+          g.fright = false;
+          g.scatter = 1.2;
+          g.dir = 2;
+        } else {
+          // pac caught -> soft reset positions (attract mode never "ends")
+          softCatch();
+          return;
+        }
+      }
+    }
+  }
+
+  var catchFlash = 0;
+  function softCatch() {
+    catchFlash = 0.5;
+    var ps = findStartTile(23, 13);
+    pac.r = ps.r; pac.c = ps.c; pac.tr = ps.r; pac.tc = ps.c;
+    pac.px = tileCenterX(ps.c); pac.py = tileCenterY(ps.r);
+    pac.dir = 1;
+    var ghostStarts = [
+      { r: 13, c: 13 }, { r: 13, c: 14 },
+      { r: 14, c: 13 }, { r: 14, c: 14 }
+    ];
+    for (var i = 0; i < ghosts.length; i++) {
+      var gs = findStartTile(ghostStarts[i].r, ghostStarts[i].c);
+      var g = ghosts[i];
+      g.r = gs.r; g.c = gs.c; g.tr = gs.r; g.tc = gs.c;
+      g.px = tileCenterX(gs.c); g.py = tileCenterY(gs.r);
+      g.dir = 2; g.fright = false; g.scatter = 2.0 + i * 0.4;
+    }
+    frightTimer = 0;
+  }
+
+  // ---------- DRAWING ----------
+  function drawSky() {
+    var bands = SKY.length;
+    var bh = Math.ceil(H / bands);
+    for (var i = 0; i < bands; i++) {
+      ctx.fillStyle = SKY[i];
+      ctx.fillRect(0, i * bh, W, bh + 1);
+    }
+  }
+
+  var floorScroll = 0;
+  function drawFloor() {
+    var cell = 28;
+    var off = floorScroll % cell;
+    ctx.strokeStyle = "rgba(124,249,255,0.06)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (var x = -off; x <= W; x += cell) {
+      ctx.moveTo(Math.floor(x) + 0.5, 0);
+      ctx.lineTo(Math.floor(x) + 0.5, H);
+    }
+    for (var y = -off; y <= H; y += cell) {
+      ctx.moveTo(0, Math.floor(y) + 0.5);
+      ctx.lineTo(W, Math.floor(y) + 0.5);
+    }
+    ctx.stroke();
+    // node dots
+    ctx.fillStyle = "rgba(255,79,154,0.10)";
+    for (var yy = -off; yy <= H; yy += cell) {
+      for (var xx = -off; xx <= W; xx += cell) {
+        ctx.fillRect(Math.floor(xx), Math.floor(yy), 2, 2);
+      }
+    }
+  }
+
+  function drawMaze() {
+    // walls: filled blue tiles with cyan top/left edge accent for a pixel look
+    for (var r = 0; r < ROWS; r++) {
+      for (var c = 0; c < COLS; c++) {
+        if (MAZE[r][c] === "#") {
+          var x = OX + c * TILE;
+          var y = OY + r * TILE;
+          ctx.fillStyle = WALL;
+          ctx.fillRect(x, y, TILE, TILE);
+          // cyan outline only on exposed edges (neighbors that aren't walls)
+          ctx.fillStyle = WALL_OUT;
+          var t = Math.max(1, Math.floor(TILE / 8));
+          if (!isWall(r - 1, c)) ctx.fillRect(x, y, TILE, t);              // top
+          if (!isWall(r + 1, c)) ctx.fillRect(x, y + TILE - t, TILE, t);  // bottom
+          if (!isWall(r, c - 1)) ctx.fillRect(x, y, t, TILE);             // left
+          if (!isWall(r, c + 1)) ctx.fillRect(x + TILE - t, y, t, TILE);  // right
+        }
+      }
+    }
+  }
+
+  function drawPellets() {
+    var ps = Math.max(2, Math.floor(TILE / 6));
+    var pp = Math.max(3, Math.floor(TILE / 3));
+    var powPulse = (Math.sin(globalT * 6) * 0.5 + 0.5);
+    for (var r = 0; r < ROWS; r++) {
+      for (var c = 0; c < COLS; c++) {
+        var v = pellets[r] && pellets[r][c];
+        if (!v) continue;
+        var cx = OX + c * TILE + TILE / 2;
+        var cy = OY + r * TILE + TILE / 2;
+        if (v === 1) {
+          ctx.fillStyle = PELLET;
+          ctx.fillRect(Math.floor(cx - ps / 2), Math.floor(cy - ps / 2), ps, ps);
+        } else {
+          // power pellet - pink, pulsing
+          var sz = pp + Math.floor(powPulse * 2);
+          ctx.fillStyle = PINK;
+          ctx.fillRect(Math.floor(cx - sz / 2), Math.floor(cy - sz / 2), sz, sz);
+          ctx.fillStyle = HI;
+          ctx.fillRect(Math.floor(cx - sz / 2), Math.floor(cy - sz / 2), Math.max(1, sz / 3 | 0), Math.max(1, sz / 3 | 0));
+        }
+      }
+    }
+  }
+
+  function drawPac() {
+    var cx = pac.px, cy = pac.py;
+    var R = Math.floor(TILE * 0.46);
+    // chomp: mouth open angle 0..~0.85 rad based on chompPhase
+    var mouth = (Math.sin(chompPhase) * 0.5 + 0.5) * 0.85;
+    // pixel circle via fillRect rows, with a wedge cut for the mouth on facing side.
+    var color = catchFlash > 0 && (Math.floor(catchFlash * 12) % 2 === 0) ? HI : COIN_GOLD;
+    ctx.fillStyle = color;
+
+    var dir = pac.dir; // 0 r,1 l,2 up,3 down
+    // We draw a filled disc then carve the mouth wedge.
+    for (var dyp = -R; dyp <= R; dyp++) {
+      var span = Math.floor(Math.sqrt(R * R - dyp * dyp));
+      for (var dxp = -span; dxp <= span; dxp++) {
+        // compute angle of this pixel in the facing frame to carve the mouth wedge
+        var ang;
+        var fx, fy;
+        if (dir === 0) { fx = dxp; fy = dyp; }
+        else if (dir === 1) { fx = -dxp; fy = dyp; }
+        else if (dir === 2) { fx = dyp; fy = -dxp; }
+        else { fx = -dyp; fy = dxp; }
+        ang = Math.atan2(fy, fx); // -pi..pi, 0 = facing
+        if (Math.abs(ang) < mouth) continue; // carve mouth
+        ctx.fillRect(Math.floor(cx + dxp), Math.floor(cy + dyp), 1, 1);
+      }
+    }
+    // highlight pixel
+    ctx.fillStyle = COIN_HI;
+    var hx = cx + (dir === 1 ? R * 0.3 : -R * 0.2);
+    var hy = cy - R * 0.4;
+    var hs = Math.max(1, Math.floor(TILE / 8));
+    ctx.fillRect(Math.floor(hx), Math.floor(hy), hs, hs);
+  }
+
+  function drawGhost(g) {
+    var cx = g.px, cy = g.py;
+    var R = Math.floor(TILE * 0.44);
+    var w = R * 2;
+    var bodyColor = g.color;
+    var flee = g.fright;
+    if (flee) {
+      // blink white near end of fright
+      if (frightTimer < 1.6 && Math.floor(frightTimer * 8) % 2 === 0) bodyColor = FRIGHT2;
+      else bodyColor = FRIGHT;
+    }
+
+    var left = Math.floor(cx - R);
+    var top = Math.floor(cy - R);
+
+    // dome (top half rounded) approximated as rect with rounded top
+    ctx.fillStyle = bodyColor;
+    // top rounded part
+    for (var dyp = -R; dyp <= 0; dyp++) {
+      var span = Math.floor(Math.sqrt(R * R - dyp * dyp));
+      ctx.fillRect(Math.floor(cx - span), Math.floor(cy + dyp), span * 2 + 1, 1);
+    }
+    // body rectangle
+    var bodyH = R; // lower half
+    ctx.fillRect(left, Math.floor(cy), w + 1, bodyH);
+
+    // wavy skirt (3 bumps)
+    var bumps = 3;
+    var bw = (w + 1) / bumps;
+    var skirtY = cy + bodyH;
+    var phase = Math.floor(globalT * 8) % 2;
+    for (var b = 0; b < bumps; b++) {
+      var bx = left + b * bw;
+      var down = ((b + phase) % 2 === 0);
+      var hh = Math.max(2, Math.floor(TILE / 6));
+      if (down) {
+        ctx.fillRect(Math.floor(bx), Math.floor(skirtY), Math.ceil(bw), hh);
+      } else {
+        ctx.fillRect(Math.floor(bx), Math.floor(skirtY) - hh, Math.ceil(bw), hh);
+      }
+    }
+
+    // eyes
+    var eR = Math.max(2, Math.floor(TILE / 5));
+    var eyeY = cy - Math.floor(R * 0.15);
+    var eyeDX = Math.floor(R * 0.42);
+    if (flee) {
+      // frightened: pale eyes + small mouth
+      ctx.fillStyle = (bodyColor === FRIGHT2) ? "#ff4f9a" : STAR_CYAN;
+      ctx.fillRect(Math.floor(cx - eyeDX - 1), Math.floor(eyeY - 1), 2, 2);
+      ctx.fillRect(Math.floor(cx + eyeDX - 1), Math.floor(eyeY - 1), 2, 2);
+    } else {
+      // white sclera
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(Math.floor(cx - eyeDX - eR / 2), Math.floor(eyeY - eR / 2), eR, eR);
+      ctx.fillRect(Math.floor(cx + eyeDX - eR / 2), Math.floor(eyeY - eR / 2), eR, eR);
+      // pupil looks toward movement dir
+      var pdx = DIRS[g.dir].x, pdy = DIRS[g.dir].y;
+      var pr = Math.max(1, Math.floor(eR / 2));
+      ctx.fillStyle = "#241447";
+      ctx.fillRect(Math.floor(cx - eyeDX - pr / 2 + pdx * pr), Math.floor(eyeY - pr / 2 + pdy * pr), pr, pr);
+      ctx.fillRect(Math.floor(cx + eyeDX - pr / 2 + pdx * pr), Math.floor(eyeY - pr / 2 + pdy * pr), pr, pr);
+    }
+
+    // "MEV" tag above ghost
+    drawMevTag(cx, top - Math.floor(TILE * 0.55), flee);
+  }
+
+  function drawMevTag(cx, y, flee) {
+    if (TILE < 9) return; // too small to read
+    var label = "MEV";
+    var fs = Math.max(7, Math.floor(TILE * 0.5));
+    ctx.font = "700 " + fs + "px ui-monospace, monospace";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    var tw = ctx.measureText(label).width;
+    var padX = 3, padY = 1;
+    var bw = tw + padX * 2;
+    var bh = fs + padY * 2;
+    var bx = Math.floor(cx - bw / 2);
+    var by = Math.floor(y - bh / 2);
+    ctx.fillStyle = "rgba(20,12,40,0.85)";
+    ctx.fillRect(bx, by, bw, bh);
+    ctx.fillStyle = flee ? STAR_CYAN : PINK;
+    ctx.fillRect(bx, by, bw, 1);
+    ctx.fillRect(bx, by + bh - 1, bw, 1);
+    ctx.fillStyle = flee ? STAR_CYAN : "#ffb0d0";
+    ctx.fillText(label, Math.floor(cx), Math.floor(y) + 1);
+    ctx.textAlign = "left";
+    ctx.textBaseline = "alphabetic";
+  }
+
+  function drawScanlines() {
+    ctx.fillStyle = "rgba(0,0,0,0.10)";
+    // physical rows: account for DPR by stepping in css px equiv of 2 physical px
+    var stepCss = 2 / DPR;
+    for (var y = 0; y < H; y += 2 * stepCss) {
+      ctx.fillRect(0, y, W, stepCss);
+    }
+  }
+
+  // small decorative brand crosses / stars drifting faint behind maze area corners
+  function drawAmbient() {
+    // a couple of faint pink crosses in margins
+    ctx.fillStyle = "rgba(255,79,154,0.12)";
+    var s = 6;
+    var spots = [
+      { x: W * 0.06, y: H * 0.14 },
+      { x: W * 0.93, y: H * 0.78 },
+      { x: W * 0.5, y: H * 0.05 }
+    ];
+    for (var i = 0; i < spots.length; i++) {
+      var sp = spots[i];
+      var px = Math.floor(sp.x), py = Math.floor(sp.y);
+      ctx.fillRect(px - s, py - s / 3, s * 2, s * 0.66);
+      ctx.fillRect(px - s / 3, py - s, s * 0.66, s * 2);
+    }
+  }
+
+  // ---------- main render ----------
+  function render() {
+    drawSky();
+    drawFloor();
+    drawAmbient();
+    drawMaze();
+    drawPellets();
+    drawPac();
+    for (var i = 0; i < ghosts.length; i++) drawGhost(ghosts[i]);
+    drawScanlines();
+  }
+
+  function drawStatic() {
+    initEntities();
+    globalT = 0; chompPhase = 0.9;
+    render();
+  }
+
+  // ---------- loop ----------
+  var globalT = 0;
+  var last = 0;
+  var running = true;
+
+  function frame(ts) {
+    if (!running) return;
+    if (!last) last = ts;
+    var dt = (ts - last) / 1000;
+    last = ts;
+    if (dt > 0.05) dt = 0.05;
+
+    globalT += dt;
+    floorScroll += dt * 8;
+    chompPhase += dt * 11;
+    if (frightTimer > 0) {
+      frightTimer -= dt;
+      if (frightTimer <= 0) {
+        for (var i = 0; i < ghosts.length; i++) ghosts[i].fright = false;
+        frightTimer = 0;
+      }
+    }
+    if (catchFlash > 0) catchFlash -= dt;
+    if (resetFlash > 0) resetFlash -= dt;
+
+    // update entities
+    advance(pac, dt, true);
+    for (var g = 0; g < ghosts.length; g++) {
+      if (ghosts[g].scatter > 0) ghosts[g].scatter -= dt;
+      advance(ghosts[g], dt, false);
+    }
+    checkCollisions();
+
+    render();
+    rafId = requestAnimationFrame(frame);
+  }
+
+  var rafId = null;
+  function start() {
+    if (REDUCED) { resize(); drawStatic(); return; }
+    initEntities();
+    last = 0;
+    running = true;
+    rafId = requestAnimationFrame(frame);
+  }
+
+  function stop() {
+    running = false;
+    if (rafId) cancelAnimationFrame(rafId);
+    rafId = null;
+  }
+
+  // visibility / focus pause
+  document.addEventListener("visibilitychange", function () {
+    if (REDUCED) return;
+    if (document.hidden) {
+      stop();
+    } else {
+      if (!running) { running = true; last = 0; rafId = requestAnimationFrame(frame); }
+    }
+  });
+  window.addEventListener("blur", function () {
+    // keep running on blur to be safe in iframes; only pause on hidden.
+  });
+
+  window.addEventListener("resize", function () {
+    resize();
+    // re-snap entity pixel positions to their tiles after rescale
+    if (pac) {
+      pac.px = tileCenterX(pac.c); pac.py = tileCenterY(pac.r);
+      pac.tr = pac.r; pac.tc = pac.c;
+    }
+    if (ghosts) {
+      for (var i = 0; i < ghosts.length; i++) {
+        var g = ghosts[i];
+        g.px = tileCenterX(g.c); g.py = tileCenterY(g.r);
+        g.tr = g.r; g.tc = g.c;
+      }
+    }
+  });
+
+  // init
+  resize();
+  start();
+})();
+</script>
+</body>
+</html>

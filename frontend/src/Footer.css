@@ -51,6 +51,12 @@
 .ft-logo:hover { opacity: 1; filter: none; }
 .ft-stellar { height: 22px; }
 .ft-partners-zk { font-size: 13px; color: var(--muted-2); }
+/* build-tool names as pixel chips (Silkscreen + hard border) — keep the all-8-bit footer
+   instead of pasting rounded full-colour vendor logos */
+.ft-tech { font-family: var(--font-label); font-size: 11px; text-transform: uppercase; letter-spacing: .06em;
+  color: var(--muted); border: 2px solid var(--border); border-radius: var(--radius); padding: 4px 9px; line-height: 1;
+  transition: color .12s, border-color .12s; }
+.ft-tech:hover { color: var(--coin); border-color: var(--coin); }
 [data-theme="dark"] .ft-logo { filter: grayscale(1) brightness(1.7); }
 [data-theme="light"] .ft-logo { filter: grayscale(1) brightness(0.55); }
 

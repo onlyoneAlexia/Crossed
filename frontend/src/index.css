@@ -60,14 +60,21 @@
   --surface-2: #F4EAD2;
   --border:    #E2D3A8;
   --ink:       #C9A85F;   /* shadows: warm tan (keeps arcade sticker depth on cream) */
-  --good-bg:   #DCF3E2;
+  --good-bg:   #E6F6EA;   /* paler so deep-green badge text reaches AA */
   --violet:    #6A4DE0;   /* deeper violet for contrast on cream */
   --primary-fg:#1A1206;
+  /* neon accents wash out as TEXT on cream — give light mode its own readable
+     (AA) versions; the bright dark-mode values stay in :root for decorative dots. */
+  --bbb:       #0A7C8C;   /* deep teal: links / labels / chips read on cream (~4.6:1) */
+  --bbb-dot:   #18C7D6;   /* brighter teal kept for purely-decorative dots */
+  --good:      #0F8A43;   /* readable success green on cream (FULFILLED / YOU / checks) */
+  --warn:      #B5560A;   /* readable amber on cream (PENDING) */
+  --muted-2:   #756748;   /* lifted to AA — carries contract id, balances, timestamps */
   color-scheme: light;
 }
 /* light-mode contrast fixes: neon washes out on cream */
 [data-theme="light"] .lp-hero h1 .g,
-[data-theme="light"] .hero h1 .g { color: #0E8FA0; }   /* deep teal vs bright cyan */
+[data-theme="light"] .hero h1 .g { color: #0B6F7D; }   /* deeper teal so it matches the ink clause's weight */
 [data-theme="light"] h1,
 [data-theme="light"] h2,
 [data-theme="light"] .brand .name,
@@ -77,10 +84,14 @@
 * { box-sizing: border-box; }
 html, body, #root { height: 100%; }
 html, body { overflow-x: hidden; max-width: 100%; }
+html { scroll-padding-top: 64px; }   /* in-page anchors clear the sticky landing nav */
 
 body {
   margin: 0;
-  background: var(--bg);
+  /* transparent so the fixed CrossingBackground canvas (z-index:-1) shows through.
+     :root/html still paints var(--bg) as the base, so there's no flash and the
+     reduced-motion static frame still has a solid backdrop. */
+  background: transparent;
   color: var(--fg);
   font-family: var(--font-body);
   font-size: 21px;
@@ -125,7 +136,9 @@ h1, h2, .brand .name, .lp-hero h1, .lp-section h2 {
   font-weight: 400;
   color: var(--fg);
   letter-spacing: 0;
-  line-height: 1.55;
+  /* all-caps Press Start 2P has no descenders + a tall cap-height, so 1.55 read as a
+     paragraph break when a heading wrapped. 1.3 stays just clear of the 3px hard shadow. */
+  line-height: 1.3;
   text-transform: uppercase;
   text-shadow: 3px 3px 0 var(--ink);
 }
@@ -182,3 +195,25 @@ code, .counter, .mono { font-family: var(--font-body); }
     repeating-linear-gradient(0deg, rgba(106, 77, 224, .04) 0 2px, transparent 2px 4px);
 }
 [data-theme="light"] .arcade-bg::after { opacity: .26; }
+
+/* ===== theme crossfade =====
+   CSS variables don't transition themselves, so the sun/moon toggle would flip every
+   surface in one repaint. Transition the colour-bearing properties on the big surfaces
+   so the light<->dark switch DITHERS (stepped easing = on-brand) instead of hard-cutting.
+   Transitions only fire on change, so first paint is unaffected (no load flash). */
+body, .landing, .app, .card, .leg, .px-card, .px-input, .topbar, .lp-top,
+.arcade-bg, .arcade-bg::after, .ft, .statusbar, .activity-modal, .tok-menu, select {
+  transition: background-color .28s steps(6, end), border-color .28s steps(6, end),
+              color .28s steps(6, end);
+}
+@media (prefers-reduced-motion: reduce) {
+  body, .landing, .app, .card, .leg, .px-card, .px-input, .topbar, .lp-top,
+  .arcade-bg, .arcade-bg::after, .ft, .statusbar, .activity-modal, .tok-menu, select { transition: none; }
+}
+
+/* route transition — each view mount-fades up so navigating INTO the app feels like an
+   arrival (matches the hero's fadeUp) instead of a hard tree swap. Keyed on view in App.tsx. */
+.route-view { flex: 1 1 auto; display: flex; flex-direction: column; min-width: 0;
+  animation: routeIn .34s cubic-bezier(.22,.61,.36,1) both; }
+@keyframes routeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .route-view { animation: none; } }

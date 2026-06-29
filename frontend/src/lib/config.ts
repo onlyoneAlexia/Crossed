@@ -1,32 +1,19 @@
 // Crossed — testnet wiring.
 export const CONFIG = {
-  CONTRACT_ID: "CBGWGEP5YOOX6I734RGVGINASZR5PCGYLUV4AYEBX2M6GEFI7A3NEE24", // client-order-proof superset (OTC == DP)
+  CONTRACT_ID: "CAR5DF4XFMD2ENXVIZPGHNQCRHHO4EBIGAOJ22NVJB6ZGAEEX4DD74QP", // v3.1 superset (partial fills, tiers, cancel_v2, expiry-enforced, hardened)
 
   // Dark-pool contract (live; see docs/DEPLOYMENT.md). place_order/settle are coordinator-driven;
   // the FE calls deposit/withdraw/escrow_balance directly on this id.
-  DP_CONTRACT_ID: "CBGWGEP5YOOX6I734RGVGINASZR5PCGYLUV4AYEBX2M6GEFI7A3NEE24",
-  DP_CONTRACT_ID_HEX: "4d6311fdc39d7f23fbe44d5321a09663d788d85d2bc06081be99e310a8f836d2",
+  DP_CONTRACT_ID: "CAR5DF4XFMD2ENXVIZPGHNQCRHHO4EBIGAOJ22NVJB6ZGAEEX4DD74QP",
+  DP_CONTRACT_ID_HEX: "23d197972b07a236f5465e63b60289ceee1028301c9d69b5487d930084bf063f",
   DP_PAIR_ID: 1,
 
   RPC_URL: "https://soroban-testnet.stellar.org",
   NETWORK_PASSPHRASE: "Test SDF Network ; September 2015",
-  HORIZON_URL: "https://horizon-testnet.stellar.org",
-  RELAYER_URL: "http://127.0.0.1:8787",      // rendezvous (receipt-gated /intent + /poll)
   COORDINATOR_URL: "http://127.0.0.1:8790",  // register / post_root / mint / settle
-  RELAYER_API_TOKEN: import.meta.env.VITE_RELAYER_API_TOKEN ?? "",
   COORDINATOR_API_TOKEN: import.meta.env.VITE_COORDINATOR_API_TOKEN ?? "",
 
-  // 32-byte payloads (hex) the circuits/contract bind to
-  CHAIN_ID_HEX: "cee0302d59844d32bdca915c8203dd44b33fbb7edc19051ea37abedf28ecd472",
-  CONTRACT_ID_HEX: "4d6311fdc39d7f23fbe44d5321a09663d788d85d2bc06081be99e310a8f836d2",
-
   // SAC tokens (C... ids + 32-byte contract-id payloads) — real-named mock SACs on testnet.
-  // TOKEN_A/B kept for the legacy bilateral OTC path; the dark pool uses the TOKENS registry below.
-  TOKEN_A: "CAZ2G2KVLXUZOPCIF5VHB5NSC7PJDLJ57VCPDFZTJG7E46I2Y5JNJ32O", // USDC
-  TOKEN_A_HEX: "33a369555de9973c482f6a70f5b217de91ad3dfd44f1973349be4e791ac752d4",
-  TOKEN_B: "CC6EOFWKZODPBQ2SHGA4HSVI4RM6WRRO7B6ZHANKEWYB4HIJ765JCDEX", // XLM
-  TOKEN_B_HEX: "bc4716cacb86f0c3523981c3caa8e459eb462ef87d9381aa25b01e1d09ffba91",
-
   // Full token registry (all mock SACs issued by the deployer, so the coordinator can mint any).
   TOKENS: [
     { sym: "USDC", c: "CAZ2G2KVLXUZOPCIF5VHB5NSC7PJDLJ57VCPDFZTJG7E46I2Y5JNJ32O", hex: "33a369555de9973c482f6a70f5b217de91ad3dfd44f1973349be4e791ac752d4", icon: "usdc" },
@@ -44,23 +31,18 @@ export const CONFIG = {
     { id: 5, base: "USDT", quote: "XLM" },
     { id: 6, base: "EURC", quote: "USDT" },
   ] as { id: number; base: string; quote: string }[],
-
-  EPOCH: 7n,
-  EXPIRY: 1800000000n,
-
   // v2 gap-closure feature flags. ALL default false so the live demo stays byte-for-byte
   // identical until each backend feature is verified green, then flipped here. See
   // docs/CROSSED_V2_PLAN.md. Each new UI piece is gated behind exactly one of these.
   FEATURES: {
-    partialFills: false,
-    tif: false,
-    maq: false,
-    tiers: false,
-    killSwitch: false,
+    partialFills: true,
+    tif: true,
+    maq: true,
+    tiers: true,
+    killSwitch: true,
     viewingKeys: false,
-    tca: false,
+    tca: true,
     passkey: false,
     refPrice: false,
   },
 };
-export const isChainWired = () => CONFIG.CONTRACT_ID.length > 0;

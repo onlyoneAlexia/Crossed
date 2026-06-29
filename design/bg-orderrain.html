@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Crossed — Calm Order-Rain</title>
+<style>
+  :root{
+    --sky1:#1a1033; --sky2:#241447; --sky3:#2d1a55; --sky4:#371f63; --sky5:#3c2168;
+    --gold:#ffcf3f; --gold-hi:#fff7c2; --coin-out:#7a3b00;
+    --star:#7df9ff; --pink:#ff4f9a; --hi:#fff4fb;
+    --buy:#5dff8f; --sell:#ff4f9a;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; height:100%; width:100%; background:var(--sky1); overflow:hidden; }
+  /* full-viewport canvas behind everything */
+  #bg{
+    position:fixed; inset:0; width:100vw; height:100vh; display:block;
+    image-rendering:pixelated; image-rendering:crisp-edges;
+    z-index:0;
+  }
+
+  /* ---------- READABILITY OVERLAY (static, HTML/CSS) ---------- */
+  .overlay{ position:fixed; inset:0; z-index:2; pointer-events:none; }
+
+  /* top bar */
+  .topbar{
+    position:absolute; top:0; left:0; right:0;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:16px 22px;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  .wordmark{
+    display:flex; align-items:center; gap:9px;
+    color:#fff; font-weight:800; font-size:20px; letter-spacing:.5px;
+    text-shadow:0 1px 0 rgba(0,0,0,.55);
+  }
+  .wordmark .x{
+    color:var(--pink); font-family: ui-monospace, monospace;
+    font-weight:900; font-size:22px; line-height:1;
+  }
+  .pill{
+    display:inline-flex; align-items:center; gap:7px;
+    background:rgba(20,12,40,.72); border:1px solid rgba(125,249,255,.35);
+    color:#d7f7ff; font-size:12.5px; font-weight:600;
+    padding:6px 11px; border-radius:999px;
+    font-family: system-ui, sans-serif;
+    box-shadow:0 1px 0 rgba(0,0,0,.4);
+  }
+  .pill .dot{
+    width:8px; height:8px; border-radius:50%;
+    background:var(--buy); box-shadow:0 0 0 2px rgba(93,255,143,.18);
+  }
+
+  /* centered trade card */
+  .center{
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+  }
+  .card{
+    width:360px; max-width:calc(100vw - 40px);
+    background:rgba(20,12,40,.72);
+    border:2px solid var(--pink);
+    border-radius:14px;
+    padding:20px 20px 22px;
+    color:#fff;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.10),
+                inset 0 0 24px rgba(255,79,154,.06),
+                0 14px 40px rgba(0,0,0,.45);
+    backdrop-filter: blur(2px);
+  }
+  .card h2{
+    margin:2px 0 16px; font-size:18px; font-weight:800; letter-spacing:.2px;
+  }
+  .row{
+    border:1px solid rgba(255,255,255,.16);
+    background:rgba(0,0,0,.22);
+    border-radius:10px;
+    padding:10px 13px; margin-bottom:11px;
+  }
+  .row .lbl{
+    font-size:11px; text-transform:uppercase; letter-spacing:1.2px;
+    color:#b9add6; margin-bottom:5px; font-weight:600;
+  }
+  .row .val{
+    display:flex; align-items:baseline; justify-content:space-between;
+  }
+  .row .ph{ color:#7e7299; font-size:14px; }
+  .row .amt{
+    font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+    font-size:18px; font-weight:600; color:#fff; letter-spacing:.5px;
+  }
+  .row .tok{
+    font-family: ui-monospace, monospace; font-size:12px;
+    color:#d7f7ff; background:rgba(125,249,255,.10);
+    border:1px solid rgba(125,249,255,.22);
+    padding:2px 7px; border-radius:6px; margin-left:8px;
+  }
+  .btn{
+    margin-top:6px; width:100%;
+    background:var(--pink); color:#2a0014;
+    border:none; border-radius:10px;
+    padding:13px; font-size:15px; font-weight:800; letter-spacing:.3px;
+    font-family: system-ui, sans-serif;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.5), 0 6px 16px rgba(255,79,154,.35);
+  }
+
+  /* concept chip bottom-left */
+  .concept{
+    position:fixed; left:14px; bottom:14px; z-index:2;
+    background:rgba(20,12,40,.78);
+    border:1px solid rgba(125,249,255,.28);
+    color:#d7f7ff;
+    font-family: ui-monospace, monospace; font-size:11.5px; letter-spacing:.4px;
+    padding:7px 11px; border-radius:8px;
+    box-shadow:0 1px 0 rgba(0,0,0,.4);
+  }
+  .concept b{ color:var(--pink); font-weight:700; }
+
+  @media (max-width:420px){
+    .card{ padding:16px; }
+    .wordmark{ font-size:18px; }
+  }
+</style>
+</head>
+<body>
+  <canvas id="bg"></canvas>
+
+  <!-- STATIC readability overlay -->
+  <div class="overlay" aria-hidden="true">
+    <div class="topbar">
+      <div class="wordmark"><span class="x">✕</span>Crossed</div>
+      <div class="pill"><span class="dot"></span>Testnet</div>
+    </div>
+
+    <div class="center">
+      <div class="card">
+        <h2>Make a private offer</h2>
+        <div class="row">
+          <div class="lbl">You give</div>
+          <div class="val">
+            <span class="amt">1,250.00<span class="tok">USDC</span></span>
+            <span class="ph">sealed</span>
+          </div>
+        </div>
+        <div class="row">
+          <div class="lbl">You want</div>
+          <div class="val">
+            <span class="amt">3,400.00<span class="tok">XLM</span></span>
+            <span class="ph">sealed</span>
+          </div>
+        </div>
+        <button class="btn">Launch app</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="concept">CONCEPT: <b>The Crossing</b> — Calm order-rain</div>
+
+<script>
+(function(){
+  "use strict";
+  var canvas = document.getElementById("bg");
+  var ctx = canvas.getContext("2d", { alpha:false });
+
+  var reduceMotion = window.matchMedia &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  // ---- shared palette ----
+  var SKY = ["#1a1033","#241447","#2d1a55","#371f63","#3c2168"];
+  var COIN_OUT="#7a3b00", COIN_GOLD="#ffcf3f", COIN_HI="#fff7c2";
+  var STAR="#7df9ff", PINK="#ff4f9a", HI="#fff4fb";
+  var BUY="#5dff8f", SELL="#ff4f9a";
+  var LOCK_BODY="#6a5aa8", LOCK_HI="#a99fde", LOCK_DARK="#3a2f6e";
+
+  var DPR=1, W=0, H=0, cw=0, ch=0;
+  var PIX=3; // logical pixel size for the imageSmoothing-off look (set on resize)
+
+  // offscreen static layers
+  var floorCanvas=document.createElement("canvas");
+  var floorCtx=floorCanvas.getContext("2d");
+  var scanCanvas=document.createElement("canvas");
+  var scanCtx=scanCanvas.getContext("2d");
+
+  // entities
+  var coins=[], stars=[], crosses=[], locks=[];
+  var pops=[]; // quiet cross flashes
+
+  var CELL=28; // grid cell css px
+  var gridScroll=0;
+
+  function rint(a,b){ return Math.floor(a + Math.random()*(b-a+1)); }
+  function rrange(a,b){ return a + Math.random()*(b-a); }
+  function pick(arr){ return arr[(Math.random()*arr.length)|0]; }
+
+  function resize(){
+    DPR = Math.min(window.devicePixelRatio||1, 1.5);
+    cw = window.innerWidth;
+    ch = window.innerHeight;
+    W = Math.max(1, Math.round(cw*DPR));
+    H = Math.max(1, Math.round(ch*DPR));
+    canvas.width=W; canvas.height=H;
+    canvas.style.width=cw+"px"; canvas.style.height=ch+"px";
+    ctx.setTransform(1,0,0,1,0,0);
+    ctx.scale(DPR,DPR);
+    ctx.imageSmoothingEnabled=false;
+
+    PIX = (DPR>=1.5)?2:2; // keep pixels chunky; scaled by depth too
+
+    buildSky();      // drawn directly each frame onto ctx via cached layer
+    buildFloor();
+    buildScan();
+    buildEntities();
+  }
+
+  // ---- SKY: hard bands cached ----
+  var skyCanvas=document.createElement("canvas");
+  var skyCtx=skyCanvas.getContext("2d");
+  function buildSky(){
+    skyCanvas.width=cw; skyCanvas.height=ch;
+    var n=SKY.length;
+    var bandH=Math.ceil(ch/n);
+    for(var i=0;i<n;i++){
+      skyCtx.fillStyle=SKY[i];
+      skyCtx.fillRect(0, i*bandH, cw, bandH+1);
+    }
+  }
+
+  // ---- FLOOR grid (one cell tile-able vertically; we redraw full for simplicity) ----
+  function buildFloor(){
+    floorCanvas.width=cw; floorCanvas.height=ch+CELL; // extra for scroll wrap
+    var c=floorCtx;
+    c.clearRect(0,0,floorCanvas.width,floorCanvas.height);
+    c.lineWidth=1;
+    c.strokeStyle="rgba(124,249,255,0.06)";
+    c.beginPath();
+    var x,y;
+    for(x=0;x<=cw;x+=CELL){ c.moveTo(x+0.5,0); c.lineTo(x+0.5,floorCanvas.height); }
+    for(y=0;y<=floorCanvas.height;y+=CELL){ c.moveTo(0,y+0.5); c.lineTo(cw,y+0.5); }
+    c.stroke();
+    // node dots
+    c.fillStyle="rgba(255,79,154,0.10)";
+    for(x=0;x<=cw;x+=CELL){
+      for(y=0;y<=floorCanvas.height;y+=CELL){
+        c.fillRect(x-1,y-1,2,2);
+      }
+    }
+  }
+
+  // ---- SCANLINES (physical rows) ----
+  function buildScan(){
+    scanCanvas.width=W; scanCanvas.height=H;
+    var c=scanCtx;
+    c.clearRect(0,0,W,H);
+    c.fillStyle="rgba(0,0,0,0.10)";
+    for(var y=0;y<H;y+=2){ c.fillRect(0,y,W,1); }
+  }
+
+  // ---- entities ----
+  // depth: 0=back(small/dim) 1=mid 2=front(big/bright)
+  function depthAlpha(d){ return d===0?0.5 : d===1?0.78 : 1.0; }
+  function depthScale(d){ return d===0?1 : d===1?1.5 : 2.1; }
+  function depthSpeed(d){ return d===0?10 : d===1?17 : 26; }
+
+  function buildEntities(){
+    coins=[]; stars=[]; crosses=[]; locks=[]; pops=[];
+    var area = cw*ch;
+    var nCoins = Math.min(16, Math.max(6, Math.round(area/90000)));
+    var nStars = Math.min(34, Math.max(14, Math.round(area/42000)));
+    var nCross = Math.min(10, Math.max(4, Math.round(area/150000)));
+    var nLocks = Math.min(7,  Math.max(3, Math.round(area/200000)));
+
+    var i;
+    for(i=0;i<nCoins;i++) coins.push(newCoin(true));
+    for(i=0;i<nStars;i++) stars.push(newStar(true));
+    for(i=0;i<nCross;i++) crosses.push(newCross(true));
+    for(i=0;i<nLocks;i++) locks.push(newLock(true));
+  }
+
+  function newCoin(spread){
+    var d=rint(0,2);
+    return {
+      x: rrange(0,cw),
+      y: spread? rrange(-ch,ch) : rrange(-60,-10),
+      d:d, sc:depthScale(d), a:depthAlpha(d), v:depthSpeed(d)*rrange(.85,1.15),
+      phase: rrange(0,Math.PI*2),
+      spin: rrange(1.6,2.8) // flip speed
+    };
+  }
+  function newStar(spread){
+    var d=rint(0,2);
+    return {
+      x: rrange(0,cw),
+      y: spread? rrange(-ch,ch) : rrange(-40,-6),
+      d:d, sc:depthScale(d), a:depthAlpha(d), v:depthSpeed(d)*rrange(.8,1.1),
+      tw: rrange(0,Math.PI*2), tws: rrange(2,4)
+    };
+  }
+  function newCross(spread){
+    var d=rint(0,2);
+    return {
+      x: rrange(0,cw),
+      y: spread? rrange(-ch,ch) : rrange(-50,-10),
+      d:d, sc:depthScale(d), a:depthAlpha(d), v:depthSpeed(d)*rrange(.8,1.1),
+      wob: rrange(0,Math.PI*2)
+    };
+  }
+  function newLock(spread){
+    var d=rint(1,2); // locks live mid/front so they're readable as "sealed orders"
+    return {
+      x: rrange(0,cw),
+      y: spread? rrange(-ch,ch*0.4) : rrange(-70,-20),
+      d:d, sc:depthScale(d)*0.9, a:depthAlpha(d), v:depthSpeed(d)*rrange(.7,.95),
+      wob: rrange(0,Math.PI*2),
+      side: Math.random()<0.5? "buy":"sell",
+      drift: 0,           // horizontal nudge when pairing
+      paired:false, partner:null, crossedDone:false
+    };
+  }
+
+  // ---- pixel sprite drawing (flat fillRect, integer snapped) ----
+  function px(v){ return Math.round(v); }
+
+  // classic spinning coin: width squashes via cos
+  function drawCoin(o,t){
+    var s = Math.max(1, Math.round(2*o.sc)); // pixel unit
+    var squash = Math.cos(t*o.spin + o.phase); // -1..1
+    var fw = Math.max(s, Math.round(Math.abs(squash)* s*4)); // face half-width-ish
+    var edge = squash<0; // back side -> dimmer
+    var cx=px(o.x), cy=px(o.y);
+    var hgt = s*8;
+    ctx.globalAlpha=o.a;
+
+    // outline column
+    ctx.fillStyle=COIN_OUT;
+    ctx.fillRect(cx-fw-s, cy-hgt/2-s, (fw+s)*2, hgt+s*2);
+    // gold face
+    ctx.fillStyle= edge? "#d9a82f" : COIN_GOLD;
+    ctx.fillRect(cx-fw, cy-hgt/2, fw*2, hgt);
+    // highlight notch (only when fairly face-on)
+    if(Math.abs(squash)>0.45 && !edge){
+      ctx.fillStyle=COIN_HI;
+      ctx.fillRect(cx-Math.round(fw*0.4), cy-Math.round(hgt*0.32), Math.max(s,Math.round(fw*0.35)), Math.round(hgt*0.5));
+      // little cross emboss
+      ctx.fillStyle="#e8b32f";
+      ctx.fillRect(cx-s, cy-s*2, s*2, s*4);
+      ctx.fillRect(cx-s*2, cy-s, s*4, s*2);
+    }
+    ctx.globalAlpha=1;
+  }
+
+  function drawStar(o,t){
+    var s=Math.max(1,Math.round(1.5*o.sc));
+    var cx=px(o.x), cy=px(o.y);
+    var tw = 0.55 + 0.45*Math.abs(Math.sin(o.tw + t*o.tws));
+    ctx.globalAlpha = o.a*tw;
+    ctx.fillStyle=STAR;
+    // plus-shaped 8-bit twinkle
+    ctx.fillRect(cx-s, cy-s, s*2, s*2);          // core
+    ctx.fillRect(cx-s, cy-s*3, s*2, s*2);        // up
+    ctx.fillRect(cx-s, cy+s, s*2, s*2);          // down
+    ctx.fillRect(cx-s*3, cy-s, s*2, s*2);        // left
+    ctx.fillRect(cx+s, cy-s, s*2, s*2);          // right
+    ctx.fillStyle=HI;
+    ctx.fillRect(cx-Math.floor(s/2), cy-Math.floor(s/2), Math.max(1,s), Math.max(1,s));
+    ctx.globalAlpha=1;
+  }
+
+  function drawCross(o,t){
+    var s=Math.max(1,Math.round(2*o.sc));
+    var cx=px(o.x), cy=px(o.y + Math.sin(o.wob+t*1.5)*1.5);
+    ctx.globalAlpha=o.a;
+    // chip backplate (dark)
+    ctx.fillStyle="rgba(40,20,70,0.9)";
+    ctx.fillRect(cx-s*3, cy-s*3, s*6, s*6);
+    // pink X
+    ctx.fillStyle=PINK;
+    for(var k=-2;k<=2;k++){
+      ctx.fillRect(cx+k*s, cy+k*s, s, s);
+      ctx.fillRect(cx+k*s, cy-k*s, s, s);
+    }
+    ctx.fillStyle=HI;
+    ctx.fillRect(cx-Math.floor(s/2), cy-Math.floor(s/2), Math.max(1,s), Math.max(1,s));
+    ctx.globalAlpha=1;
+  }
+
+  // sealed order lock-chip
+  function drawLock(o,t){
+    var s=Math.max(1,Math.round(2*o.sc));
+    var cx=px(o.x + Math.sin(o.wob+t*0.9)*1.0);
+    var cy=px(o.y);
+    var bw=s*6, bh=s*5;
+    var accent = o.side==="buy"? BUY : SELL;
+    ctx.globalAlpha=o.a;
+
+    // shackle
+    ctx.fillStyle=LOCK_HI;
+    ctx.fillRect(cx-s*2, cy-s*5, s, s*3);
+    ctx.fillRect(cx+s,   cy-s*5, s, s*3);
+    ctx.fillRect(cx-s*2, cy-s*5, s*3, s);
+
+    // body
+    ctx.fillStyle=LOCK_DARK;
+    ctx.fillRect(cx-bw/2-1, cy-bh/2-1, bw+2, bh+2);
+    ctx.fillStyle=LOCK_BODY;
+    ctx.fillRect(cx-bw/2, cy-bh/2, bw, bh);
+    // top highlight
+    ctx.fillStyle=LOCK_HI;
+    ctx.fillRect(cx-bw/2, cy-bh/2, bw, s);
+    // keyhole tinted by side
+    ctx.fillStyle=accent;
+    ctx.fillRect(cx-s, cy-s, s*2, s*2);
+    ctx.fillRect(cx-Math.floor(s/2), cy, Math.max(1,s), s*2);
+    ctx.globalAlpha=1;
+  }
+
+  // quiet cross pop: small pixel-X flash cyan/pink
+  function spawnPop(x,y){
+    pops.push({ x:x, y:y, t:0, life:0.85, s: rint(3,4) });
+  }
+  function drawPop(p){
+    var prog = p.t/p.life;             // 0..1
+    var a = (1-prog);                  // fade out
+    if(a<=0) return;
+    var grow = 1 + prog*1.6;
+    var s = Math.max(1, Math.round(p.s*grow));
+    var cx=px(p.x), cy=px(p.y);
+    ctx.globalAlpha = a*0.9;
+    // alternating cyan/pink arms — understated
+    for(var k=-3;k<=3;k++){
+      ctx.fillStyle = (k%2===0)? STAR : PINK;
+      ctx.fillRect(cx+k*s, cy+k*s, s, s);
+      ctx.fillRect(cx+k*s, cy-k*s, s, s);
+    }
+    // soft center spark
+    ctx.globalAlpha=a;
+    ctx.fillStyle=HI;
+    ctx.fillRect(cx-s, cy-s, s*2, s*2);
+    ctx.globalAlpha=1;
+  }
+
+  // ---- pairing logic: occasionally two falling locks drift together near mid-screen and cross ----
+  function tryPairLocks(){
+    var midTop=ch*0.40, midBot=ch*0.62;
+    for(var i=0;i<locks.length;i++){
+      var a=locks[i];
+      if(a.paired||a.crossedDone) continue;
+      if(a.y<midTop||a.y>midBot) continue;
+      for(var j=i+1;j<locks.length;j++){
+        var b=locks[j];
+        if(b.paired||b.crossedDone) continue;
+        if(b.y<midTop||b.y>midBot) continue;
+        // opposite side & roughly same depth & horizontally near-ish
+        if(a.side===b.side) continue;
+        if(Math.abs(a.y-b.y)>ch*0.10) continue;
+        var dx=Math.abs(a.x-b.x);
+        if(dx>cw*0.22 || dx<8) continue;
+        // pair them: drift toward midpoint
+        a.paired=true; b.paired=true;
+        a.partner=b; b.partner=a;
+        return; // at most one new pair per check, keep it calm
+      }
+    }
+  }
+
+  var pairCheck=0;
+  function update(dt,t){
+    gridScroll = (gridScroll + dt*8) % CELL;
+
+    var i,o;
+    for(i=0;i<coins.length;i++){ o=coins[i]; o.y+=o.v*dt; if(o.y>ch+40){ coins[i]=newCoin(false); coins[i].y=-rrange(10,60);} }
+    for(i=0;i<stars.length;i++){ o=stars[i]; o.y+=o.v*dt; if(o.y>ch+30){ stars[i]=newStar(false);} }
+    for(i=0;i<crosses.length;i++){ o=crosses[i]; o.y+=o.v*dt; if(o.y>ch+40){ crosses[i]=newCross(false);} }
+
+    // locks
+    for(i=0;i<locks.length;i++){
+      o=locks[i];
+      if(o.paired && o.partner && !o.crossedDone){
+        // ease toward midpoint x of the pair
+        var mid=(o.x + o.partner.x)/2;
+        o.x += (mid - o.x)*Math.min(1, dt*3.0);
+        o.y += o.v*0.6*dt; // slow while converging
+        // when close enough, pop + recycle both
+        if(Math.abs(o.x - o.partner.x) < 6 && !o.crossedDone && !o.partner.crossedDone){
+          spawnPop((o.x+o.partner.x)/2, (o.y+o.partner.y)/2);
+          o.crossedDone=true; o.partner.crossedDone=true;
+        }
+      } else {
+        o.y += o.v*dt;
+      }
+      if(o.y>ch+50 || o.crossedDone){
+        locks[i]=newLock(false);
+      }
+    }
+
+    // periodic gentle pairing attempt
+    pairCheck+=dt;
+    if(pairCheck>1.4){ pairCheck=0; if(Math.random()<0.6) tryPairLocks(); }
+
+    // pops
+    for(i=pops.length-1;i>=0;i--){
+      pops[i].t+=dt;
+      if(pops[i].t>=pops[i].life) pops.splice(i,1);
+    }
+  }
+
+  function drawFrame(t){
+    // sky
+    ctx.drawImage(skyCanvas,0,0,cw,ch);
+    // scrolling floor (draw shifted up by scroll, it has +CELL overflow)
+    ctx.drawImage(floorCanvas, 0, gridScroll-CELL, cw, floorCanvas.height);
+
+    // entities back->front by depth: draw in depth order for parallax feel
+    var i;
+    // back first
+    for(i=0;i<stars.length;i++) if(stars[i].d===0) drawStar(stars[i],t);
+    for(i=0;i<coins.length;i++) if(coins[i].d===0) drawCoin(coins[i],t);
+    for(i=0;i<crosses.length;i++) if(crosses[i].d===0) drawCross(crosses[i],t);
+    // mid
+    for(i=0;i<stars.length;i++) if(stars[i].d===1) drawStar(stars[i],t);
+    for(i=0;i<coins.length;i++) if(coins[i].d===1) drawCoin(coins[i],t);
+    for(i=0;i<crosses.length;i++) if(crosses[i].d===1) drawCross(crosses[i],t);
+    for(i=0;i<locks.length;i++) if(locks[i].d===1) drawLock(locks[i],t);
+    // front
+    for(i=0;i<stars.length;i++) if(stars[i].d===2) drawStar(stars[i],t);
+    for(i=0;i<coins.length;i++) if(coins[i].d===2) drawCoin(coins[i],t);
+    for(i=0;i<crosses.length;i++) if(crosses[i].d===2) drawCross(crosses[i],t);
+    for(i=0;i<locks.length;i++) if(locks[i].d===2) drawLock(locks[i],t);
+
+    // pops on top (still understated)
+    for(i=0;i<pops.length;i++) drawPop(pops[i]);
+
+    // scanlines (physical-pixel layer)
+    ctx.save();
+    ctx.setTransform(1,0,0,1,0,0);
+    ctx.imageSmoothingEnabled=false;
+    ctx.drawImage(scanCanvas,0,0);
+    ctx.restore();
+  }
+
+  // ---- loop ----
+  var last=0, running=true, started=false;
+  function frame(now){
+    if(!running){ return; }
+    if(!last) last=now;
+    var dt=(now-last)/1000;
+    last=now;
+    if(dt>0.05) dt=0.05;
+    var t=now/1000;
+    update(dt,t);
+    drawFrame(t);
+    requestAnimationFrame(frame);
+  }
+
+  function start(){
+    if(started) return;
+    started=true;
+    last=0;
+    requestAnimationFrame(frame);
+  }
+
+  document.addEventListener("visibilitychange", function(){
+    if(document.hidden){ running=false; }
+    else if(!reduceMotion){ running=true; last=0; requestAnimationFrame(frame); }
+  });
+
+  window.addEventListener("resize", function(){
+    resize();
+    if(reduceMotion){ drawFrame(0); }
+  });
+
+  // init
+  resize();
+  if(reduceMotion){
+    // one crisp static frame
+    update(0,0);
+    drawFrame(0);
+  } else {
+    start();
+  }
+})();
+</script>
+</body>
+</html>

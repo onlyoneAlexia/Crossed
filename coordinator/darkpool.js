@@ -30,6 +30,15 @@ const CANCEL_ORDER_VK = path.join(rootDir, "circuits/build/cancel_order/cancel_o
 const MATCH_WASM = path.join(rootDir, "circuits/build/dpmatch/dpmatch_js/dpmatch.wasm");
 const MATCH_ZKEY = path.join(rootDir, "circuits/build/dpmatch/dpmatch_final.zkey");
 const MATCH_VK = path.join(rootDir, "circuits/build/dpmatch/dpmatch_vk.json");
+const ORDER_V2_WASM = path.join(rootDir, "circuits/build_v2/order_v2/order_v2_js/order_v2.wasm");
+const ORDER_V2_ZKEY = path.join(rootDir, "circuits/build_v2/order_v2_final.zkey");
+const ORDER_V2_VK = path.join(rootDir, "circuits/build_v2/order_v2_vk.json");
+const MATCH_V2_WASM = path.join(rootDir, "circuits/build_v2/dpmatch_v2/dpmatch_v2_js/dpmatch_v2.wasm");
+const MATCH_V2_ZKEY = path.join(rootDir, "circuits/build_v2/dpmatch_v2_final.zkey");
+const MATCH_V2_VK = path.join(rootDir, "circuits/build_v2/dpmatch_v2_vk.json");
+const MATCH_V3_WASM = path.join(rootDir, "circuits/build_v3/dpmatch_v3/dpmatch_v3_js/dpmatch_v3.wasm");
+const MATCH_V3_ZKEY = path.join(rootDir, "circuits/build_v3/dpmatch_v3/dpmatch_v3_final.zkey");
+const MATCH_V3_VK = path.join(rootDir, "circuits/build_v3/dpmatch_v3/dpmatch_v3_vk.json");
 
 let cryptoPromise;
 
@@ -94,6 +103,12 @@ function assertU64(value, label) {
   return n;
 }
 
+function assertU127(value, label) {
+  const n = parseInteger(value, label);
+  if (n < 0n || n >= (1n << 127n)) throw new Error(`${label} must fit in 127 bits`);
+  return n;
+}
+
 function assertLeafIndex(value) {
   const n = Number(parseInteger(value, "leafIndex"));
   if (!Number.isSafeInteger(n) || n < 0 || n >= LEAF_CAPACITY) {
@@ -135,6 +150,18 @@ function addLeafIndex(indexByLeaf, leaf, index) {
   indexByLeaf.set(leaf.toString(), index);
   indexByLeaf.set(be32(leaf), index);
   indexByLeaf.set(`0x${be32(leaf)}`, index);
+}
+
+function inverseMod(value, modulus) {
+  let t = 0n, newT = 1n;
+  let r = modulus, newR = ((value % modulus) + modulus) % modulus;
+  while (newR !== 0n) {
+    const quotient = r / newR;
+    [t, newT] = [newT, t - quotient * newT];
+    [r, newR] = [newR, r - quotient * newR];
+  }
+  if (r !== 1n) throw new Error("value has no field inverse");
+  return t < 0n ? t + modulus : t;
 }
 
 export async function identityFromSk(skValue) {
@@ -217,6 +244,51 @@ export async function orderCommitment({ leaf, side, size, limit_price, salt, pai
   };
 }
 
+export async function orderCommitmentV2({ leaf, side, size, limit_price, salt, pair_id, batch_id, expiry, maq, tier }) {
+  const { H } = await crypto();
+  const leafN = parseLeaf(leaf, "leaf");
+  const sideN = parseInteger(side, "side");
+  if (sideN !== 0n && sideN !== 1n) throw new Error("side must be 0 (sell) or 1 (buy)");
+  const sizeN = assertU64(size, "size");
+  const limitN = assertU64(limit_price, "limit_price");
+  const saltN = parseField(salt, "salt");
+  const pairN = assertU32(pair_id, "pair_id");
+  const batchN = assertU64(batch_id, "batch_id");
+  const expiryN = assertU64(expiry, "expiry");
+  const maqN = assertU64(maq, "maq");
+  const tierN = assertU32(tier, "tier");
+  if (sizeN <= 0n) throw new Error("size must be positive");
+  if (limitN <= 0n) throw new Error("limit_price must be positive");
+  if (maqN > sizeN) throw new Error("maq must be less than or equal to size");
+
+  const note = H([DOM_ORDER, leafN, sideN, pairN, sizeN, limitN, saltN, batchN, expiryN, maqN, tierN]);
+  const nf_order = H([DOM_NFORD, saltN, note]);
+  return {
+    leaf: be32(leafN),
+    note: be32(note),
+    nf_order: be32(nf_order),
+    pair_id: Number(pairN),
+    batch_id: batchN.toString(),
+    expiry: expiryN.toString(),
+    maq: maqN.toString(),
+    tier: Number(tierN),
+    values: {
+      leaf: leafN,
+      side: sideN,
+      size: sizeN,
+      limit_price: limitN,
+      salt: saltN,
+      pair_id: pairN,
+      batch_id: batchN,
+      expiry: expiryN,
+      maq: maqN,
+      tier: tierN,
+      note,
+      nf_order,
+    },
+  };
+}
+
 async function proveAndVerify(input, wasm, zkey, vkPath, expectedSignals, label) {
   const { proof: rawProof, publicSignals } = await snarkjs.groth16.fullProve(input, wasm, zkey);
   const vk = require(vkPath);
@@ -240,6 +312,87 @@ export async function verifyCancelOrderProof(proof, publicSignals) {
 
 export async function verifyMatchProof(proof, publicSignals) {
   return snarkjs.groth16.verify(require(MATCH_VK), publicSignals, proof);
+}
+
+export async function verifyOrderV2Proof(proof, publicSignals) {
+  return snarkjs.groth16.verify(require(ORDER_V2_VK), publicSignals, proof);
+}
+
+export async function verifyMatchV2Proof(proof, publicSignals) {
+  return snarkjs.groth16.verify(require(MATCH_V2_VK), publicSignals, proof);
+}
+
+export async function verifyMatchV3Proof(proof, publicSignals) {
+  return snarkjs.groth16.verify(require(MATCH_V3_VK), publicSignals, proof);
+}
+
+export async function buildOrderV2Witness({ sk, side, size, limit_price, salt, pair_id, batch_id, expiry, maq, tier, tree, leafIndex }) {
+  if (!tree || !Array.isArray(tree.levels) || !Array.isArray(tree.leaves)) throw new Error("tree is required");
+  const { H } = await crypto();
+  const identity = await identityFromSk(sk);
+  const index = assertLeafIndex(leafIndex);
+  if (tree.leaves[index] !== identity.leaf) throw new Error("sk does not match registered leafIndex");
+
+  const sideN = parseInteger(side, "side");
+  if (sideN !== 0n && sideN !== 1n) throw new Error("side must be 0 (sell) or 1 (buy)");
+  const sizeN = assertU64(size, "size");
+  const limitN = assertU64(limit_price, "limit_price");
+  const saltN = parseField(salt, "salt");
+  const pairN = assertU32(pair_id, "pair_id");
+  const batchN = assertU64(batch_id, "batch_id");
+  const expiryN = assertU64(expiry, "expiry");
+  const maqN = assertU64(maq, "maq");
+  const tierN = assertU32(tier, "tier");
+  if (sizeN <= 0n) throw new Error("size must be positive");
+  if (limitN <= 0n) throw new Error("limit_price must be positive");
+  if (maqN > sizeN) throw new Error("maq must be less than or equal to size");
+
+  const p = pathOf(tree.levels, index);
+  const note = H([DOM_ORDER, identity.leaf, sideN, pairN, sizeN, limitN, saltN, batchN, expiryN, maqN, tierN]);
+  const nf_order = H([DOM_NFORD, saltN, note]);
+  return {
+    input: {
+      sk: identity.sk.toString(), side: sideN.toString(), size: sizeN.toString(), limit_price: limitN.toString(),
+      salt: saltN.toString(), path_el: p.el.map(String), path_idx: p.id.map(String),
+      pair_id: pairN.toString(), batch_id: batchN.toString(), root: tree.root.toString(),
+      expiry: expiryN.toString(), maq: maqN.toString(), tier: tierN.toString(),
+    },
+    note,
+    nf_order,
+    leaf: identity.leaf,
+    root: tree.root,
+    pair_id: pairN,
+    batch_id: batchN,
+    expiry: expiryN,
+    maq: maqN,
+    tier: tierN,
+  };
+}
+
+export async function proveOrderV2(params) {
+  const witness = await buildOrderV2Witness(params);
+  const proved = await proveAndVerify(
+    witness.input,
+    ORDER_V2_WASM,
+    ORDER_V2_ZKEY,
+    ORDER_V2_VK,
+    [witness.note, witness.nf_order, witness.pair_id, witness.batch_id, witness.root, witness.expiry, witness.maq, witness.tier],
+    "order v2",
+  );
+  return {
+    proof: proved.proof,
+    rawProof: proved.rawProof,
+    publicSignals: proved.publicSignals,
+    note: be32(witness.note),
+    nf_order: be32(witness.nf_order),
+    leaf: be32(witness.leaf),
+    root: be32(witness.root),
+    pair_id: Number(witness.pair_id),
+    batch_id: witness.batch_id.toString(),
+    expiry: witness.expiry.toString(),
+    maq: witness.maq.toString(),
+    tier: Number(witness.tier),
+  };
 }
 
 export async function proveOrder({ sk, side, size, limit_price, salt, pair_id, batch_id, tree, leafIndex }) {
@@ -333,6 +486,309 @@ export async function proveCancelOrder({ sk, side, size, limit_price, salt, pair
     root: be32(tree.root),
     pair_id: Number(pairN),
     batch_id: batchN.toString(),
+  };
+}
+
+export async function buildMatchV2Witness({ sell, buy, pair_id, batch_id, tree }) {
+  const { H } = await crypto();
+  const pairN = assertU32(pair_id, "pair_id");
+  const batchN = assertU64(batch_id, "batch_id");
+  const rootN = tree?.root !== undefined ? parseLeaf(tree.root, "root") : parseLeaf(sell?.root ?? buy?.root, "root");
+  const leafSell = parseLeaf(sell?.leaf, "sell.leaf");
+  const leafBuy = parseLeaf(buy?.leaf, "buy.leaf");
+  if (leafSell === leafBuy) throw new Error("sell.leaf and buy.leaf must differ");
+  if (sell?.side !== undefined && parseInteger(sell.side, "sell.side") !== 0n) throw new Error("sell.side must be 0");
+  if (buy?.side !== undefined && parseInteger(buy.side, "buy.side") !== 1n) throw new Error("buy.side must be 1");
+
+  const sizeSell = assertU64(sell.size, "sell.size");
+  const sizeBuy = assertU64(buy.size, "buy.size");
+  const limitSell = assertU64(sell.limit_price, "sell.limit_price");
+  const limitBuy = assertU64(buy.limit_price, "buy.limit_price");
+  const saltSell = parseField(sell.salt, "sell.salt");
+  const saltBuy = parseField(buy.salt, "buy.salt");
+  const expirySell = assertU64(sell.expiry, "sell.expiry");
+  const expiryBuy = assertU64(buy.expiry, "buy.expiry");
+  const maqSell = assertU64(sell.maq, "sell.maq");
+  const maqBuy = assertU64(buy.maq, "buy.maq");
+  const tierSell = assertU32(sell.tier, "sell.tier");
+  const tierBuy = assertU32(buy.tier, "buy.tier");
+  if (sizeSell <= 0n || sizeBuy <= 0n) throw new Error("order size must be positive");
+  if (limitSell <= 0n || limitBuy <= 0n) throw new Error("limit_price must be positive");
+  if (sizeSell !== sizeBuy) throw new Error("dark-pool match requires equal order sizes");
+  if (maqSell > sizeSell) throw new Error("sell.maq must be less than or equal to sell.size");
+  if (maqBuy > sizeBuy) throw new Error("buy.maq must be less than or equal to buy.size");
+
+  const sum = limitSell + limitBuy;
+  const cross = sum / 2n;
+  const parity = sum % 2n;
+  if (limitSell > cross || cross > limitBuy) throw new Error("orders do not cross at midpoint");
+  const product = sizeSell * cross;
+  const quote = assertU127(product / SCALE, "fill_quote");
+  const rem = product % SCALE;
+
+  const noteSell = H([DOM_ORDER, leafSell, 0n, pairN, sizeSell, limitSell, saltSell, batchN, expirySell, maqSell, tierSell]);
+  const noteBuy = H([DOM_ORDER, leafBuy, 1n, pairN, sizeBuy, limitBuy, saltBuy, batchN, expiryBuy, maqBuy, tierBuy]);
+  if (sell.note !== undefined && parseLeaf(sell.note, "sell.note") !== noteSell) {
+    throw new Error("sell note does not match submitted order opening");
+  }
+  if (buy.note !== undefined && parseLeaf(buy.note, "buy.note") !== noteBuy) {
+    throw new Error("buy note does not match submitted order opening");
+  }
+  const nfSell = H([DOM_NFSPEND, saltSell, noteSell]);
+  const nfBuy = H([DOM_NFSPEND, saltBuy, noteBuy]);
+  const matchId = H([DOM_MATCH, noteSell, noteBuy, pairN, batchN, rootN]);
+  const leafDiffInv = inverseMod(leafSell - leafBuy, FIELD_MODULUS);
+
+  return {
+    input: {
+      leaf_sell_w: leafSell.toString(), size_sell: sizeSell.toString(), limit_sell: limitSell.toString(),
+      salt_sell: saltSell.toString(), expiry_sell: expirySell.toString(), maq_sell: maqSell.toString(),
+      tier_sell: tierSell.toString(),
+      leaf_buy_w: leafBuy.toString(), size_buy: sizeBuy.toString(), limit_buy: limitBuy.toString(),
+      salt_buy: saltBuy.toString(), expiry_buy: expiryBuy.toString(), maq_buy: maqBuy.toString(),
+      tier_buy: tierBuy.toString(),
+      cross_price: cross.toString(), parity: parity.toString(), quote_amount_w: quote.toString(),
+      rem: rem.toString(), leaf_diff_inv: leafDiffInv.toString(),
+      pair_id: pairN.toString(), batch_id: batchN.toString(), root: rootN.toString(),
+    },
+    match_id: matchId,
+    note_sell: noteSell,
+    note_buy: noteBuy,
+    nf_sell: nfSell,
+    nf_buy: nfBuy,
+    leaf_sell: leafSell,
+    leaf_buy: leafBuy,
+    fill_base: sizeSell,
+    fill_quote: quote,
+    pair_id: pairN,
+    batch_id: batchN,
+    root: rootN,
+  };
+}
+
+export async function proveMatchV2(params) {
+  const witness = await buildMatchV2Witness(params);
+  const proved = await proveAndVerify(
+    witness.input,
+    MATCH_V2_WASM,
+    MATCH_V2_ZKEY,
+    MATCH_V2_VK,
+    [
+      witness.match_id,
+      witness.note_sell,
+      witness.note_buy,
+      witness.nf_sell,
+      witness.nf_buy,
+      witness.leaf_sell,
+      witness.leaf_buy,
+      witness.fill_base,
+      witness.fill_quote,
+      witness.pair_id,
+      witness.batch_id,
+      witness.root,
+    ],
+    "match v2",
+  );
+  return {
+    proof: proved.proof,
+    rawProof: proved.rawProof,
+    publicSignals: proved.publicSignals,
+    match_id: be32(witness.match_id),
+    note_sell: be32(witness.note_sell),
+    note_buy: be32(witness.note_buy),
+    nf_sell: be32(witness.nf_sell),
+    nf_buy: be32(witness.nf_buy),
+    leaf_sell: be32(witness.leaf_sell),
+    leaf_buy: be32(witness.leaf_buy),
+    fill_base: witness.fill_base.toString(),
+    fill_quote: witness.fill_quote.toString(),
+    base_amount: witness.fill_base.toString(),
+    quote_amount: witness.fill_quote.toString(),
+  };
+}
+
+export async function buildMatchV3Witness({
+  sell,
+  buy,
+  pair_id,
+  batch_id,
+  tree,
+  cross_price,
+  fill_base,
+  change_salt_sell,
+  change_salt_buy,
+  assigned_tier_sell,
+  assigned_tier_buy,
+}) {
+  const { H } = await crypto();
+  const pairN = assertU32(pair_id, "pair_id");
+  const batchN = assertU64(batch_id, "batch_id");
+  const rootN = tree?.root !== undefined ? parseLeaf(tree.root, "root") : parseLeaf(sell?.root ?? buy?.root, "root");
+  const leafSell = parseLeaf(sell?.leaf, "sell.leaf");
+  const leafBuy = parseLeaf(buy?.leaf, "buy.leaf");
+  if (leafSell === leafBuy) throw new Error("sell.leaf and buy.leaf must differ");
+  if (sell?.side !== undefined && parseInteger(sell.side, "sell.side") !== 0n) throw new Error("sell.side must be 0");
+  if (buy?.side !== undefined && parseInteger(buy.side, "buy.side") !== 1n) throw new Error("buy.side must be 1");
+
+  const sizeSell = assertU64(sell.size, "sell.size");
+  const sizeBuy = assertU64(buy.size, "buy.size");
+  const limitSell = assertU64(sell.limit_price, "sell.limit_price");
+  const limitBuy = assertU64(buy.limit_price, "buy.limit_price");
+  const saltSell = parseField(sell.salt, "sell.salt");
+  const saltBuy = parseField(buy.salt, "buy.salt");
+  const expirySell = assertU64(sell.expiry, "sell.expiry");
+  const expiryBuy = assertU64(buy.expiry, "buy.expiry");
+  const maqSell = assertU64(sell.maq, "sell.maq");
+  const maqBuy = assertU64(buy.maq, "buy.maq");
+  const tierSell = assertU32(sell.tier, "sell.tier");
+  const tierBuy = assertU32(buy.tier, "buy.tier");
+  const fillBase = assertU64(fill_base, "fill_base");
+  const cross = assertU64(cross_price, "cross_price");
+  const changeSaltSell = parseField(change_salt_sell, "change_salt_sell");
+  const changeSaltBuy = parseField(change_salt_buy, "change_salt_buy");
+  const assignedTierSell = assertU32(assigned_tier_sell, "assigned_tier_sell");
+  const assignedTierBuy = assertU32(assigned_tier_buy, "assigned_tier_buy");
+  if (sizeSell <= 0n || sizeBuy <= 0n) throw new Error("order size must be positive");
+  if (limitSell <= 0n || limitBuy <= 0n) throw new Error("limit_price must be positive");
+  if (fillBase <= 0n) throw new Error("fill_base must be positive");
+  if (fillBase > sizeSell || fillBase > sizeBuy) throw new Error("fill_base must be less than or equal to both order sizes");
+  if (fillBase < maqSell || fillBase < maqBuy) throw new Error("fill_base must satisfy both order MAQs");
+  if (assignedTierBuy < tierSell) throw new Error("buy assigned tier does not satisfy sell requirement");
+  if (assignedTierSell < tierBuy) throw new Error("sell assigned tier does not satisfy buy requirement");
+
+  const sum = limitSell + limitBuy;
+  if (sum < 2n * cross || sum > 2n * cross + 1n) throw new Error("cross_price must be the midpoint floor");
+  const parity = sum - 2n * cross;
+  if (limitSell > cross || cross > limitBuy) throw new Error("orders do not cross at midpoint");
+  const product = fillBase * cross;
+  const quote = assertU127(product / SCALE, "fill_quote");
+  const rem = product % SCALE;
+  if (quote <= 0n) throw new Error("fill_quote must be positive");
+
+  const noteSell = H([DOM_ORDER, leafSell, 0n, pairN, sizeSell, limitSell, saltSell, batchN, expirySell, maqSell, tierSell]);
+  const noteBuy = H([DOM_ORDER, leafBuy, 1n, pairN, sizeBuy, limitBuy, saltBuy, batchN, expiryBuy, maqBuy, tierBuy]);
+  if (sell.note !== undefined && parseLeaf(sell.note, "sell.note") !== noteSell) {
+    throw new Error("sell note does not match submitted order opening");
+  }
+  if (buy.note !== undefined && parseLeaf(buy.note, "buy.note") !== noteBuy) {
+    throw new Error("buy note does not match submitted order opening");
+  }
+  const nfSell = H([DOM_NFSPEND, saltSell, noteSell]);
+  const nfBuy = H([DOM_NFSPEND, saltBuy, noteBuy]);
+  const residualSell = sizeSell - fillBase;
+  const residualBuy = sizeBuy - fillBase;
+  const rawChangeNoteSell = H([DOM_ORDER, leafSell, 0n, pairN, residualSell, limitSell, changeSaltSell, batchN, expirySell, maqSell, tierSell]);
+  const rawChangeNoteBuy = H([DOM_ORDER, leafBuy, 1n, pairN, residualBuy, limitBuy, changeSaltBuy, batchN, expiryBuy, maqBuy, tierBuy]);
+  const changeNoteSell = residualSell === 0n ? 0n : rawChangeNoteSell;
+  const changeNoteBuy = residualBuy === 0n ? 0n : rawChangeNoteBuy;
+  const changeNfOrderSell = residualSell === 0n ? 0n : H([DOM_NFORD, changeSaltSell, rawChangeNoteSell]);
+  const changeNfOrderBuy = residualBuy === 0n ? 0n : H([DOM_NFORD, changeSaltBuy, rawChangeNoteBuy]);
+  const matchId = H([DOM_MATCH, noteSell, noteBuy, pairN, batchN, rootN]);
+  const leafDiffInv = inverseMod(leafSell - leafBuy, FIELD_MODULUS);
+
+  return {
+    input: {
+      leaf_sell_w: leafSell.toString(), size_sell: sizeSell.toString(), limit_sell: limitSell.toString(),
+      salt_sell: saltSell.toString(), expiry_sell: expirySell.toString(), maq_sell: maqSell.toString(),
+      tier_sell: tierSell.toString(),
+      leaf_buy_w: leafBuy.toString(), size_buy: sizeBuy.toString(), limit_buy: limitBuy.toString(),
+      salt_buy: saltBuy.toString(), expiry_buy: expiryBuy.toString(), maq_buy: maqBuy.toString(),
+      tier_buy: tierBuy.toString(),
+      fill_base_w: fillBase.toString(), cross_price: cross.toString(), parity: parity.toString(),
+      quote_amount_w: quote.toString(), rem: rem.toString(), leaf_diff_inv: leafDiffInv.toString(),
+      change_salt_sell: changeSaltSell.toString(), change_salt_buy: changeSaltBuy.toString(),
+      assigned_tier_sell_w: assignedTierSell.toString(), assigned_tier_buy_w: assignedTierBuy.toString(),
+      pair_id: pairN.toString(), batch_id: batchN.toString(), root: rootN.toString(),
+    },
+    match_id: matchId,
+    note_sell: noteSell,
+    note_buy: noteBuy,
+    nf_sell: nfSell,
+    nf_buy: nfBuy,
+    leaf_sell: leafSell,
+    leaf_buy: leafBuy,
+    fill_base: fillBase,
+    fill_quote: quote,
+    change_note_sell: changeNoteSell,
+    change_note_buy: changeNoteBuy,
+    assigned_tier_sell: assignedTierSell,
+    assigned_tier_buy: assignedTierBuy,
+    pair_id: pairN,
+    batch_id: batchN,
+    root: rootN,
+    changeSell: {
+      size: residualSell,
+      change_salt: changeSaltSell,
+      note: changeNoteSell,
+      nf_order: changeNfOrderSell,
+    },
+    changeBuy: {
+      size: residualBuy,
+      change_salt: changeSaltBuy,
+      note: changeNoteBuy,
+      nf_order: changeNfOrderBuy,
+    },
+  };
+}
+
+export async function proveMatchV3(params) {
+  const witness = await buildMatchV3Witness(params);
+  const proved = await proveAndVerify(
+    witness.input,
+    MATCH_V3_WASM,
+    MATCH_V3_ZKEY,
+    MATCH_V3_VK,
+    [
+      witness.match_id,
+      witness.note_sell,
+      witness.note_buy,
+      witness.nf_sell,
+      witness.nf_buy,
+      witness.leaf_sell,
+      witness.leaf_buy,
+      witness.fill_base,
+      witness.fill_quote,
+      witness.change_note_sell,
+      witness.change_note_buy,
+      witness.assigned_tier_sell,
+      witness.assigned_tier_buy,
+      witness.pair_id,
+      witness.batch_id,
+      witness.root,
+    ],
+    "match v3",
+  );
+  return {
+    proof: proved.proof,
+    rawProof: proved.rawProof,
+    publicSignals: proved.publicSignals,
+    match_id: be32(witness.match_id),
+    note_sell: be32(witness.note_sell),
+    note_buy: be32(witness.note_buy),
+    nf_sell: be32(witness.nf_sell),
+    nf_buy: be32(witness.nf_buy),
+    leaf_sell: be32(witness.leaf_sell),
+    leaf_buy: be32(witness.leaf_buy),
+    fill_base: witness.fill_base.toString(),
+    fill_quote: witness.fill_quote.toString(),
+    change_note_sell: be32(witness.change_note_sell),
+    change_note_buy: be32(witness.change_note_buy),
+    assigned_tier_sell: Number(witness.assigned_tier_sell),
+    assigned_tier_buy: Number(witness.assigned_tier_buy),
+    base_amount: witness.fill_base.toString(),
+    quote_amount: witness.fill_quote.toString(),
+    changeSell: {
+      size: witness.changeSell.size.toString(),
+      change_salt: witness.changeSell.change_salt.toString(),
+      note: be32(witness.changeSell.note),
+      nf_order: be32(witness.changeSell.nf_order),
+    },
+    changeBuy: {
+      size: witness.changeBuy.size.toString(),
+      change_salt: witness.changeBuy.change_salt.toString(),
+      note: be32(witness.changeBuy.note),
+      nf_order: be32(witness.changeBuy.nf_order),
+    },
   };
 }
 

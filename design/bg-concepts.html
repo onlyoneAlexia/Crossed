@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Crossed — background concepts</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #0d0820; color: #fff; font-family: system-ui, sans-serif; }
+  .bar { display:flex; align-items:center; gap:12px; padding:10px 16px; border-bottom:2px solid #ff4f9a; background:#140c28; }
+  .bar h1 { font-size:15px; margin:0; letter-spacing:.5px; }
+  .bar .hint { font-size:12px; opacity:.7; }
+  .grid { display:grid; grid-template-columns:1fr 1fr; grid-template-rows:1fr 1fr; gap:10px; padding:10px; height:calc(100vh - 47px); }
+  .cell { position:relative; border:2px solid #2d1a55; border-radius:10px; overflow:hidden; background:#0d0820; }
+  .cell iframe { width:100%; height:100%; border:0; display:block; }
+  .cell .tag { position:absolute; top:8px; left:8px; z-index:2; font-size:11px; font-family:ui-monospace,monospace;
+    background:rgba(13,8,32,.82); border:1px solid #ff4f9a; color:#ffcf3f; padding:3px 8px; border-radius:6px; pointer-events:none; }
+  .cell .open { position:absolute; top:8px; right:8px; z-index:2; font-size:11px; font-family:ui-monospace,monospace;
+    background:rgba(13,8,32,.82); border:1px solid #7df9ff; color:#7df9ff; padding:3px 8px; border-radius:6px; text-decoration:none; }
+  .cell.rec .tag { border-color:#5dff8f; color:#5dff8f; }
+</style>
+</head>
+<body>
+  <div class="bar">
+    <h1>Crossed — background concepts</h1>
+    <span class="hint">Four full-page 8-bit options, each with a sample trade card on top to test readability. ▸ = recommended.</span>
+  </div>
+  <div class="grid">
+    <div class="cell rec">
+      <span class="tag">▸ 1 · The Crossing (enacts the product)</span>
+      <a class="open" href="bg-crossing.html" target="_blank">open ↗</a>
+      <iframe src="bg-crossing.html" title="The Crossing"></iframe>
+    </div>
+    <div class="cell">
+      <span class="tag">2 · Themed Pac-Man (ghosts = front-runners)</span>
+      <a class="open" href="bg-pacman-themed.html" target="_blank">open ↗</a>
+      <iframe src="bg-pacman-themed.html" title="Themed Pac-Man"></iframe>
+    </div>
+    <div class="cell">
+      <span class="tag">3 · Full-page live Pac-Man</span>
+      <a class="open" href="bg-pacman-fullpage.html" target="_blank">open ↗</a>
+      <iframe src="bg-pacman-fullpage.html" title="Full-page Pac-Man"></iframe>
+    </div>
+    <div class="cell">
+      <span class="tag">4 · Calm order-rain (lowest risk)</span>
+      <a class="open" href="bg-orderrain.html" target="_blank">open ↗</a>
+      <iframe src="bg-orderrain.html" title="Calm order-rain"></iframe>
+    </div>
+  </div>
+</body>
+</html>

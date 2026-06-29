@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M40 0H0V40" fill="none" stroke="#211A10" stroke-width="2"/>
+    </pattern>
+  </defs>
+  <rect width="1200" height="630" fill="#15110C"/>
+  <rect width="1200" height="630" fill="url(#grid)"/>
+  <rect x="6" y="6" width="1188" height="618" fill="none" stroke="#3A2E1A" stroke-width="4"/>
+
+  <!-- logo + wordmark -->
+  <image xlink:href="crossed-logo.svg" x="90" y="118" width="96" height="96"/>
+  <text x="210" y="196" font-family="monospace" font-size="92" font-weight="700" fill="#FFD23F" letter-spacing="6">CROSSED</text>
+
+  <!-- headline -->
+  <text x="92" y="330" font-family="monospace" font-size="62" font-weight="700" fill="#FBF3E0">Swap tokens privately.</text>
+  <text x="92" y="404" font-family="monospace" font-size="62" font-weight="700" fill="#2CE8F5">Nobody sees the deal</text>
+  <text x="92" y="478" font-family="monospace" font-size="62" font-weight="700" fill="#2CE8F5">until it happens.</text>
+
+  <!-- footer line -->
+  <rect x="92" y="536" width="14" height="14" fill="#2BFF88"/>
+  <text x="118" y="549" font-family="monospace" font-size="26" fill="#C9BFA6">Sealed peer-to-peer swaps on Stellar &#183; settled on-chain on match</text>
+</svg>

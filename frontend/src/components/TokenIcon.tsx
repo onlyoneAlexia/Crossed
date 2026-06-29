@@ -3,7 +3,7 @@
  *
  * Branded coin set (style "A"): the real token mark on a shaded pixel coin.
  * Files: assets/tokens/<sym>-coin{32,24}.svg  (32 = sweet spot, 24 = chunkier)
- * Set: usdc, eurc, usdt, xlm, dai  (add more via assets/tokens/generate.py)
+ * Set: usdc, eurc, usdt, xlm  (add more via assets/tokens/generate.py)
  *
  * Usage:
  *   <TokenIcon symbol="USDC" />
@@ -14,7 +14,7 @@
  */
 import React from "react";
 
-export const TOKENS = ["usdc", "eurc", "usdt", "xlm", "dai"] as const;
+export const TOKENS = ["usdc", "eurc", "usdt", "xlm"] as const;
 export type TokenSymbol = (typeof TOKENS)[number] | (string & {});
 
 export interface TokenIconProps

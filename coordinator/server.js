@@ -3,14 +3,20 @@ import { fileURLToPath } from "node:url";
 
 import { createDirectory } from "./directory.js";
 import { createMatcher } from "./matcher.js";
+import { createJsonStore } from "./store.js";
 import {
   createAuthMiddleware,
   createCorsMiddleware,
   createExpiringMap,
   createRateLimitMiddleware,
+  requireOwnerAuthorization,
 } from "./security.js";
 
-export async function registerLeaf({ directory, chain, body }) {
+function flagEnv(value) {
+  return typeof value === "string" && !/^(|0|false|off|no)$/i.test(value);
+}
+
+export async function registerLeaf({ directory, chain, body, persistState = async () => {} }) {
   const entry = await directory.add(body ?? {});
   if (entry.added) {
     await chain.register({
@@ -28,6 +34,7 @@ export async function registerLeaf({ directory, chain, body }) {
       leaf_count: snapshot.count,
       leaves_digest: snapshot.root_hex,
     });
+    await persistState();
   }
 
   return {
@@ -37,7 +44,7 @@ export async function registerLeaf({ directory, chain, body }) {
   };
 }
 
-export async function registerDpLeaf({ directory, chain, matcher, body }) {
+export async function registerDpLeaf({ directory, chain, matcher, body, persistState = async () => {} }) {
   const request = body ?? {};
   if (typeof request.owner !== "string" || !request.owner) throw new Error("owner is required");
   if (typeof request.auth_entry !== "string" || !request.auth_entry) throw new Error("auth_entry is required");
@@ -62,6 +69,7 @@ export async function registerDpLeaf({ directory, chain, matcher, body }) {
     });
     directory.commit(prepared);
     if (posted?.confirmed) matcher?.markRootPosted(prepared.root_hex);
+    await persistState();
   } else {
     const existing = directory.get(prepared.leaf);
     if (existing?.owner && existing.owner !== request.owner) {
@@ -76,13 +84,20 @@ export async function registerDpLeaf({ directory, chain, matcher, body }) {
   };
 }
 
-export function createApp({ directory, chain, matcher = createMatcher({ pairId: chain?.dpPairId }) }) {
+export function createApp({
+  directory,
+  chain,
+  matcher = createMatcher({ pairId: chain?.dpPairId, orderV2: flagEnv(process.env.DP_ORDER_V2) }),
+  persistState = async () => {},
+}) {
   if (!directory) throw new Error("directory is required");
   if (!chain) throw new Error("chain is required");
   if (!matcher) throw new Error("matcher is required");
 
   const app = express();
   const auth = createAuthMiddleware();
+  const requiredAuth = createAuthMiddleware({ required: true });
+  const dpOrderV2 = flagEnv(process.env.DP_ORDER_V2);
 
   app.use(createCorsMiddleware());
   app.use(createRateLimitMiddleware());
@@ -95,14 +110,19 @@ export function createApp({ directory, chain, matcher = createMatcher({ pairId: 
       contract: chain.contractId,
       dp_contract: chain.dpContractId,
       dp_pair_id: chain.dpPairId,
+      dp_order_v2: dpOrderV2,
       tokenA: chain.tokenA,
       tokenB: chain.tokenB,
     });
   });
 
+  app.get("/auth/check", auth, (_req, res) => {
+    res.json({ ok: true });
+  });
+
   app.post("/register", auth, async (req, res) => {
     try {
-      res.json(await registerLeaf({ directory, chain, body: req.body }));
+      res.json(await registerLeaf({ directory, chain, body: req.body, persistState }));
     } catch (error) {
       res.status(400).json({ error: error.message });
     }
@@ -116,7 +136,7 @@ export function createApp({ directory, chain, matcher = createMatcher({ pairId: 
     }
   });
 
-  app.post("/fund", auth, async (req, res) => {
+  app.post("/fund", requiredAuth, async (req, res) => {
     try {
       const { account } = req.body ?? {};
       const result = await chain.fund({ account });
@@ -126,7 +146,7 @@ export function createApp({ directory, chain, matcher = createMatcher({ pairId: 
     }
   });
 
-  app.post("/mint", auth, async (req, res) => {
+  app.post("/mint", requiredAuth, async (req, res) => {
     try {
       const { account, token, amount } = req.body ?? {};
       const result = await chain.mint({ account, token, amount });
@@ -160,7 +180,7 @@ export function createApp({ directory, chain, matcher = createMatcher({ pairId: 
     }
   }
 
-  app.post("/settle", auth, async (req, res) => {
+  app.post("/settle", requiredAuth, async (req, res) => {
     try {
       const { match_id, owner, auth_entry, args } = req.body ?? {};
       const key = normMatch(match_id);
@@ -192,7 +212,7 @@ export function createApp({ directory, chain, matcher = createMatcher({ pairId: 
   // register(owner, ...); the coordinator (source) co-authorizes and posts the new root.
   app.post("/dp/register", auth, async (req, res) => {
     try {
-      res.json(await registerDpLeaf({ directory, chain, matcher, body: req.body }));
+      res.json(await registerDpLeaf({ directory, chain, matcher, body: req.body, persistState }));
     } catch (error) {
       res.status(400).json({ error: error.message });
     }
@@ -200,23 +220,37 @@ export function createApp({ directory, chain, matcher = createMatcher({ pairId: 
 
   app.post("/dp/order", auth, async (req, res) => {
     try {
-      res.json(await matcher.submitOrder(chain, directory, req.body));
+      res.json(await matcher.submitOrder(chain, directory, req.body, { orderV2: dpOrderV2 }));
     } catch (error) {
       res.status(400).json({ error: error.message });
     }
   });
 
-  app.post("/dp/cancel", auth, async (req, res) => {
+  app.post("/dp/cancel", requiredAuth, async (req, res) => {
     try {
+      if (req.body?.onchain_cancelled === true) {
+        if (typeof chain.isOrderOpen !== "function") throw new Error("on-chain order status is unavailable");
+        if (await chain.isOrderOpen(req.body?.note)) {
+          return res.status(409).json({ error: "order is still open on-chain" });
+        }
+      } else {
+        requireOwnerAuthorization({
+          action: "dp_cancel",
+          owner: req.body?.owner,
+          note: req.body?.note,
+          timestamp: req.body?.timestamp,
+          signature: req.body?.signature ?? req.body?.wallet_signature,
+        });
+      }
       res.json(await matcher.cancelOrder(chain, directory, req.body));
     } catch (error) {
-      res.status(400).json({ error: error.message });
+      res.status(error.statusCode ?? 400).json({ error: error.message });
     }
   });
 
-  app.post("/dp/close", auth, async (_req, res) => {
+  app.post("/dp/close", requiredAuth, async (_req, res) => {
     try {
-      res.json(await matcher.closeBatch(chain, directory));
+      res.json(await matcher.closeBatch(chain, directory, { orderV2: dpOrderV2 }));
     } catch (error) {
       res.status(400).json({ error: error.message });
     }
@@ -226,11 +260,35 @@ export function createApp({ directory, chain, matcher = createMatcher({ pairId: 
     res.json(matcher.batch());
   });
 
-  app.get("/dp/fills/:owner", auth, (req, res) => {
+  app.get("/dp/fills/:owner", requiredAuth, (req, res) => {
     try {
+      // Bearer auth is coordinator-level only; each fills lookup also proves control of :owner.
+      requireOwnerAuthorization({
+        action: "dp_fills",
+        owner: req.params.owner,
+        timestamp: req.query.timestamp ?? req.headers["x-crossed-wallet-timestamp"],
+        signature: req.query.signature ?? req.headers["x-crossed-wallet-signature"],
+      });
       res.json({ fills: matcher.fillsFor(req.params.owner) });
     } catch (error) {
-      res.status(400).json({ error: error.message });
+      res.status(error.statusCode ?? 400).json({ error: error.message });
+    }
+  });
+
+  app.get("/dp/activity/:owner", requiredAuth, (req, res) => {
+    try {
+      requireOwnerAuthorization({
+        action: "dp_activity",
+        owner: req.params.owner,
+        timestamp: req.query.timestamp ?? req.headers["x-crossed-wallet-timestamp"],
+        signature: req.query.signature ?? req.headers["x-crossed-wallet-signature"],
+      });
+      res.json({
+        orders: typeof matcher.ordersFor === "function" ? matcher.ordersFor(req.params.owner) : [],
+        fills: matcher.fillsFor(req.params.owner),
+      });
+    } catch (error) {
+      res.status(error.statusCode ?? 400).json({ error: error.message });
     }
   });
 
@@ -243,6 +301,12 @@ export async function main() {
     createDirectory(),
   ]);
   const chain = createChainFromEnv();
+  const store = createJsonStore({ contractId: chain.dpContractId });
+  const persisted = await store.load();
+  for (const reg of persisted.registrations) await directory.add(reg);
+  if (persisted.registrations.length > 0) {
+    console.log(`Loaded ${persisted.registrations.length} registration(s) from ${store.statePath}`);
+  }
 
   // Rebuild the in-memory directory from on-chain registrations so leaf_count + root
   // stay consistent with the persistent contract state across coordinator restarts.
@@ -262,15 +326,24 @@ export async function main() {
     console.error("Directory sync from chain failed:", error.message);
   }
 
-  const matcher = createMatcher({ pairId: chain.dpPairId });
+  let matcher;
+  const persistState = async () => store.save({ directory, matcher });
+  matcher = createMatcher({
+    pairId: chain.dpPairId,
+    orderV2: flagEnv(process.env.DP_ORDER_V2),
+    initialState: persisted,
+    onChange: persistState,
+    onDecision: (decision) => store.appendDecision(decision),
+  });
   matcher.markRootPosted(startupRoot); // skip a redundant first-order root re-post
-  const app = createApp({ directory, chain, matcher });
+  await persistState();
+  const app = createApp({ directory, chain, matcher, persistState });
   const port = Number(process.env.PORT ?? 8790);
   const host = process.env.HOST ?? "127.0.0.1";
   const batchMs = Number(process.env.DP_BATCH_MS ?? 0);
   if (Number.isFinite(batchMs) && batchMs > 0) {
     setInterval(() => {
-      matcher.closeBatch(chain, directory).catch((error) => {
+      matcher.closeBatch(chain, directory, { orderV2: flagEnv(process.env.DP_ORDER_V2) }).catch((error) => {
         console.error("Dark-pool auto-close failed:", error.message);
       });
     }, batchMs).unref();

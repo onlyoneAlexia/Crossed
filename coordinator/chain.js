@@ -165,6 +165,21 @@ export function placeOrderArgs(args) {
   ];
 }
 
+export function placeOrderV2Args(args) {
+  if (!args || typeof args !== "object") throw new Error("args is required");
+  return [
+    proofScVal(args.proof),
+    bytes32ScVal(args.note, "note"),
+    bytes32ScVal(args.nf_order, "nf_order"),
+    u32ScVal(args.pair_id, "pair_id"),
+    u64ScVal(args.batch_id, "batch_id"),
+    bytes32ScVal(args.root, "root"),
+    u64ScVal(args.expiry, "expiry"),
+    u64ScVal(args.maq, "maq"),
+    u32ScVal(args.tier, "tier"),
+  ];
+}
+
 // deposit_and_place_order: deposit leg (owner/token/amount) + the order leg (same as placeOrderArgs).
 export function depositAndPlaceOrderArgs(args) {
   if (!args || typeof args !== "object") throw new Error("args is required");
@@ -194,6 +209,48 @@ export function settleDpMatchArgs(args) {
     bytes32ScVal(args.leaf_buy, "leaf_buy"),
     i128ScVal(args.base_amount, "base_amount"),
     i128ScVal(args.quote_amount, "quote_amount"),
+    u32ScVal(args.pair_id, "pair_id"),
+    u64ScVal(args.batch_id, "batch_id"),
+    bytes32ScVal(args.root, "root"),
+  ];
+}
+
+export function settleDpMatchV2Args(args) {
+  if (!args || typeof args !== "object") throw new Error("args is required");
+  return [
+    proofScVal(args.proof),
+    bytes32ScVal(args.match_id, "match_id"),
+    bytes32ScVal(args.note_sell, "note_sell"),
+    bytes32ScVal(args.note_buy, "note_buy"),
+    bytes32ScVal(args.nf_sell, "nf_sell"),
+    bytes32ScVal(args.nf_buy, "nf_buy"),
+    bytes32ScVal(args.leaf_sell, "leaf_sell"),
+    bytes32ScVal(args.leaf_buy, "leaf_buy"),
+    i128ScVal(args.fill_base, "fill_base"),
+    i128ScVal(args.fill_quote, "fill_quote"),
+    u32ScVal(args.pair_id, "pair_id"),
+    u64ScVal(args.batch_id, "batch_id"),
+    bytes32ScVal(args.root, "root"),
+  ];
+}
+
+export function settleDpMatchV3Args(args) {
+  if (!args || typeof args !== "object") throw new Error("args is required");
+  return [
+    proofScVal(args.proof),
+    bytes32ScVal(args.match_id, "match_id"),
+    bytes32ScVal(args.note_sell, "note_sell"),
+    bytes32ScVal(args.note_buy, "note_buy"),
+    bytes32ScVal(args.nf_sell, "nf_sell"),
+    bytes32ScVal(args.nf_buy, "nf_buy"),
+    bytes32ScVal(args.leaf_sell, "leaf_sell"),
+    bytes32ScVal(args.leaf_buy, "leaf_buy"),
+    i128ScVal(args.fill_base, "fill_base"),
+    i128ScVal(args.fill_quote, "fill_quote"),
+    bytes32ScVal(args.change_note_sell, "change_note_sell"),
+    bytes32ScVal(args.change_note_buy, "change_note_buy"),
+    u32ScVal(args.assigned_tier_sell, "assigned_tier_sell"),
+    u32ScVal(args.assigned_tier_buy, "assigned_tier_buy"),
     u32ScVal(args.pair_id, "pair_id"),
     u64ScVal(args.batch_id, "batch_id"),
     bytes32ScVal(args.root, "root"),
@@ -411,6 +468,11 @@ export function createChain({
       return { tx: result.tx, success: true };
     },
 
+    async placeOrderV2(args) {
+      const result = await invoke(dpContractId, "place_order_v2", placeOrderV2Args(args));
+      return { tx: result.tx, success: true };
+    },
+
     // Deposit + place the opaque order in ONE tx. The trader's auth entry covers the deposit
     // (owner, token, amount) + the nested SAC transfer; the coordinator co-authorizes (source).
     // deposit_amount "0" skips the deposit leg (pre-funded escrow), needing no trader auth entry.
@@ -426,6 +488,20 @@ export function createChain({
     async settleDpMatch(args) {
       const result = await invoke(dpContractId, "settle_dp_match", settleDpMatchArgs(args));
       return { tx: result.tx, success: true };
+    },
+
+    async settleDpMatchV2(args) {
+      const result = await invoke(dpContractId, "settle_dp_match_v2", settleDpMatchV2Args(args));
+      return { tx: result.tx, success: true };
+    },
+
+    async settleDpMatchV3(args) {
+      const result = await invoke(dpContractId, "settle_dp_match_v3", settleDpMatchV3Args(args));
+      return { tx: result.tx, success: true };
+    },
+
+    async tier_of(leaf) {
+      return Number(await simulateContract(dpContractId, "tier_of", [bytes32ScVal(leaf, "leaf")]));
     },
 
     async dpEscrowBalance({ owner, token }) {

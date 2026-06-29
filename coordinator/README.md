@@ -40,6 +40,7 @@ Environment:
 - `RPC_URL` - defaults to `https://soroban-testnet.stellar.org`.
 - `OTC_CONTRACT_ID`, `DP_CONTRACT_ID`, `TOKEN_A_CONTRACT_ID`, `TOKEN_B_CONTRACT_ID` - optional overrides for the deployed IDs.
 - `DP_MIN_BATCH_ORDERS` - minimum open orders before `/dp/close` advances a batch, default `2`.
+- `DP_BATCH_MS` - optional auto-close interval in milliseconds. When set above `0`, the coordinator runs the same batch matcher on a timer.
 
 ## Endpoints
 

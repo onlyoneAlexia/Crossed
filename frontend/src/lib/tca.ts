@@ -90,8 +90,10 @@ export interface TcaMetrics {
 
 const ATOMIC = 1e7; // SAC tokens are 7-decimal on this deployment.
 const RECENT_FILLS_CAP = 25;
-// Testnet RPC retains ~24h of events (~17k ledgers @ ~5s). Stay safely inside it.
-const DEFAULT_LEDGER_WINDOW = 17_000;
+// Testnet RPC silently returns [] when startLedger predates its event retention (only a few
+// thousand ledgers here, and it varies by endpoint). Try progressively smaller windows and use
+// the first the RPC actually serves, so recent fills always appear.
+const LEDGER_WINDOWS = [16_000, 9_000, 4_000, 1_500];
 const PAGE_LIMIT = 200;
 const MAX_PAGES = 12; // hard cap so a busy contract can't spin forever.
 
@@ -255,9 +257,18 @@ export async function loadTcaMetrics(rpcUrl: string, contractId: string): Promis
 
   let latest = 0;
   try { latest = (await srv.getLatestLedger()).sequence; } catch { latest = 0; }
-  const startLedger = Math.max(1, latest - DEFAULT_LEDGER_WINDOW);
 
-  const events = latest > 0 ? await fetchSettlementEvents(srv, contractId, startLedger) : [];
+  // The RPC serves only its retained window; use the largest candidate window that returns events.
+  let startLedger = Math.max(1, latest - LEDGER_WINDOWS[LEDGER_WINDOWS.length - 1]);
+  let events: rpc.Api.EventResponse[] = [];
+  if (latest > 0) {
+    for (const win of LEDGER_WINDOWS) {
+      const start = Math.max(1, latest - win);
+      const evs = await fetchSettlementEvents(srv, contractId, start);
+      startLedger = start;
+      if (evs.length > 0) { events = evs; break; }
+    }
+  }
 
   const raw: RawFill[] = [];
   for (const ev of events) {
